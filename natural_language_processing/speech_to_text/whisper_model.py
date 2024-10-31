@@ -31,4 +31,4 @@ class TextToSpeechModel():
         self.pub.publish(data=self.forward(msg.data))
 
     def forward(self, file: str = "TestSound"):
-        return self.pipe(file)
+        return self.pipe(file)['text']
