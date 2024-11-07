@@ -52,7 +52,7 @@ recorded_data = []
 
 import subprocess
 
-def record_audio__hacked_when_sounddevice_cannot_find_headset(output_file="recording.wav", duration=5, sound_card=3):
+def record_audio__hacked_when_sounddevice_cannot_find_headset(output_file="recording.wav", duration=5, sound_card=1):
     command = [
         "pasuspender", "--", "arecord", 
         f"-D", f"plughw:{sound_card},0",

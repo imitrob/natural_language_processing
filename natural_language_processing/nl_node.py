@@ -44,10 +44,12 @@ class NLInputPipePublisher(Node):
     def on_press(self, key):
         try:
             if key == keyboard.Key.space:  # Start recording on space key press
-                record_audio__hacked_when_sounddevice_cannot_find_headset(RECORD_NAME, duration=RECORD_TIME, sound_card=3)
+                record_audio__hacked_when_sounddevice_cannot_find_headset(RECORD_NAME, duration=RECORD_TIME, sound_card=1)
                 print("Processing started")
                 self.forward(RECORD_NAME)
                 # start_recording()
+            if key == keyboard.Key.esc:
+                return False
         except AttributeError:
             pass
 
