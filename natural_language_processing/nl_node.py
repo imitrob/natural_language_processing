@@ -6,7 +6,7 @@ from rclpy.node import Node
 from hri_msgs.msg import HRICommand as HRICommandMSG # Download https://github.com/ichores-research/modality_merging to workspace
 from pynput import keyboard
 
-from natural_language_processing.speech_to_text.audio_recorder import record_audio__hacked_when_sounddevice_cannot_find_headset
+from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
 from natural_language_processing.speech_to_text.whisper_model import TextToSpeechModel
 from natural_language_processing.sentence_instruct_transformer.sentence_processor import SentenceProcessor
 from natural_language_processing.scene_reader import attach_all_labels
@@ -21,6 +21,8 @@ class NLInputPipePublisher(Node):
 
         self.stt = TextToSpeechModel()
         self.sentence_processor = SentenceProcessor()
+
+        self.rec = AudioRecorder()
 
     def forward(self, recording_name: str):
         print("1. Speech to text")
@@ -44,30 +46,27 @@ class NLInputPipePublisher(Node):
     def on_press(self, key):
         try:
             if key == keyboard.Key.space:  # Start recording on space key press
-                record_audio__hacked_when_sounddevice_cannot_find_headset(RECORD_NAME, duration=RECORD_TIME, sound_card=1)
-                print("Processing started")
-                self.forward(RECORD_NAME)
-                # start_recording()
+                self.rec.start_recording()#, sound_card=1)
             if key == keyboard.Key.esc:
                 return False
         except AttributeError:
             pass
 
-    # def on_release(self, key):
-    #     if key == keyboard.Key.space:  # Stop recording on space key release
-    #         recording_name = stop_recording()
-    #         if recording_name is not None:
-    #             print("Processing started")
-    #             self.forward(recording_name)
+    def on_release(self, key):
+        if key == keyboard.Key.space:  # Stop recording on space key release
+            recording_name = self.rec.stop_recording()
+            if recording_name is not None:
+                print("Processing started")
+                self.forward(recording_name)
                 
-    #     if key == keyboard.Key.esc:  # Exit on ESC key release
-    #         return False
+        if key == keyboard.Key.esc:  # Exit on ESC key release
+            return False
 
 def main():
     rclpy.init()
     nl_input = NLInputPipePublisher()
     # Listen to keyboard events
-    with keyboard.Listener(on_press=nl_input.on_press) as listener: #, on_release=nl_input.on_release) as listener:
+    with keyboard.Listener(on_press=nl_input.on_press, on_release=nl_input.on_release) as listener:
         print(f"Press 'space' to start {RECORD_TIME} second recording... Press 'esc' to exit.")
         listener.join()
 
