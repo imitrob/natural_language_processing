@@ -29,7 +29,7 @@ class NLInputPipePublisher(Node):
         print("2. Sentence processing")
         output = self.sentence_processor.predict(sentence_text)
 
-        output = attach_all_labels(output)
+        # output = attach_all_labels(output)
 
         for k in output.keys():
             if isinstance(output[k], np.ndarray):
