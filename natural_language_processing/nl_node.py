@@ -50,6 +50,17 @@ class NLInputPipePublisher(Node):
                 # start_recording()
             if key == keyboard.Key.esc:
                 return False
+            if key == keyboard.Key.ctrl:
+                # test NLP from pre-prepared sound files
+                print("Test processing started")
+                test_lang = "test_nlp_sentences/test_language.wav"
+                test_point = "test_nlp_sentences/test_pointing.wav"
+                test_lang_ref = "test_nlp_sentences/test_language_ref.wav"
+                test_point_ref = "test_nlp_sentences/test_pointing_ref.wav"
+                # self.forward(test_lang)
+                # self.forward(test_point)
+                # self.forward(test_lang_ref)
+                self.forward(test_point_ref)
         except AttributeError:
             pass
 

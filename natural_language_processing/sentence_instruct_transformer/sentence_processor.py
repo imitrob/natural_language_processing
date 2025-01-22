@@ -77,6 +77,38 @@ Here are some examples:
    For every sentence, always identify the action, objects, spatial relationship, and their colors. If any information is missing, return 'null' for that field.
 """
 
+ROLE_DESCRIPTION_V2 = """
+You are an assistant that extracts the action, objects, spatial relationships, and their colors from user sentences. Output the result as: action, first object, second object, spatial relationship, first object color, second object color. Always specify the spatial relationship, such as 'on top', 'into', or 'near'. If there is no second object, color, or spatial relationship, return null for those fields. Colors are adjectives and should never be classified as objects.
+
+actions are: pick, put, pour, place, stack, unglue.
+objects are: cup, book, water, ball, cup, laptop, cleaner, tape, cube, drawer 
+colors are: green, red, yellow, blue, pink
+
+Here are some examples:
+
+    Input: 'Put the book on top of the drawer.'
+    Output: 'action: put, object: book, object: drawer, relationship: on top, color: null, color: null'
+    
+    Input: 'Put the cup into the drawer.'
+    Output: 'action: put, object: cup, object: drawer, relationship: null, color: null, color: null'
+
+    Input: 'Pick up the red ball.'
+    Output: 'action: pick, object: ball, object: null, relationship: up, color: null, color: red'
+
+    Input: 'Grasp object with same color as this one.'
+    Output: 'action: pick, object: null, object: null, relationship: color, color: null, color: null'
+
+    Input: 'Grapst object with same shape as this one.'
+    Output: 'action: pick, object: null, object: null, relationship: shape, color: null, color: null'
+
+    Input: 'Pick object left to this one.'
+    Output: 'action: pick, object: null, object: null, relationship: left, color: null, color: null'
+
+    Input: 'Grasp object right to this one.'
+    Output: 'action: pick, object: null, object: null, relationship: right, color: null, color: null'
+
+For every sentence, always identify the action, objects, spatial relationship, and their colors. If any information is missing, return 'null' for that field.
+"""
 
 class SentenceProcessor():
     def __init__(self, model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"):
@@ -120,7 +152,7 @@ class SentenceProcessor():
         messages = [
             {
             "role": "system",
-            "content": ROLE_DESCRIPTION,
+            "content": ROLE_DESCRIPTION_V2,
             },
             {"role": "user", "content": prompt}
         ]

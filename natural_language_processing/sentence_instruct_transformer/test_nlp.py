@@ -66,6 +66,18 @@ def test_nlp_1(test_dataset = [
         ], [
             "put it into the drawer.", 
             {"target_action": "put", "target_object": "item", "target_object2":"drawer", "relationship": "into"}
+        ], [
+            "grasp same color.",
+            {"target_action": "pick", "target_object": "null", "target_object2": "null", "relationship": "color"}
+        ], [
+            "grasp same shape.",
+            {"target_action": "pick", "target_object": "null", "target_object2": "null", "relationship": "shape"}
+        ], [
+            "grasp object left to this.",
+            {"target_action": "pick", "target_object": "null", "target_object2": "null", "relationship": "left"}
+        ], [
+            "grasp object right to this.",
+            {"target_action": "pick", "target_object": "null", "target_object2": "null", "relationship": "right"}
         ],
     ]):
     sp = SentenceProcessor()
