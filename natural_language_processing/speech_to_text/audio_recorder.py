@@ -71,7 +71,7 @@ class PyAudioRecorder():
     FORMAT = pyaudio.paInt32  # 16-bit audio format
     CHANNELS = 1             # Mono
     CHUNK = 1024             # Buffer size
-    OUTPUT_FILE = "output.wav"
+    OUTPUT_FILE = f"output_{np.random.randint(10000)}.wav"
 
     def __init__(self,
                  fs=44100, # Sample rate
@@ -96,7 +96,7 @@ class PyAudioRecorder():
                 data = stream.read(self.CHUNK)
                 self.frames.append(data)
         except KeyboardInterrupt:
-            print("Recording stopped.")
+            print("Recording stopped.", flush=True)
         finally:
             stream.stop_stream()
             stream.close()
@@ -110,25 +110,18 @@ class PyAudioRecorder():
                 wf.writeframes(b''.join(self.frames))
 
     def start_recording(self):
-        print(".")
         if not self.is_recording:
-            print("start recordgin")
-
             self.is_recording = True
+
             self.recording_thread = threading.Thread(target=self.record_audio)
             self.recording_thread.start()
-            print("Recording started...")
+            print("Recording started...", flush=True)
     
     def stop_recording(self):
-        print("...")
-        
-
         if self.is_recording:
-            print("stop recordgin")
-
             self.is_recording = False
             self.recording_thread.join()  # Wait for recording thread to finish
-            print("Recording stopped...")
+            print("Recording stopped...", flush=True)
             # file_name = self.save_recording()
             return self.OUTPUT_FILE
         return None
