@@ -121,7 +121,7 @@ class PyAudioRecorder():
         if self.is_recording:
             self.is_recording = False
             self.recording_thread.join()  # Wait for recording thread to finish
-            print("Recording stopped...", flush=True)
+            print(f"Recording stopped... with file: {self.OUTPUT_FILE}", flush=True)
             # file_name = self.save_recording()
             return self.OUTPUT_FILE
         return None

@@ -9,7 +9,7 @@ from pynput import keyboard
 from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
 from natural_language_processing.speech_to_text.whisper_model import SpeechToTextModel
 from natural_language_processing.sentence_instruct_transformer.sentence_processor import SentenceProcessor
-from natural_language_processing.scene_reader import attach_all_labels, map_user_preferences
+from natural_language_processing.scene_reader import attach_all_labels
 
 RECORD_TIME = 5
 RECORD_NAME = "recording.wav"
@@ -45,9 +45,6 @@ class NLInputPipePublisher(Node):
 
         self.pub_original.publish(HRICommandMSG(data=[str(json.dumps(output))]))
 
-        output['action_names'], output['action_probs'] = map_user_preferences(output["action_probs"], self.user)
-        self.pub_original.publish(HRICommandMSG(data=[str(json.dumps(output))]))
-
     # Keyboard event listener
     def on_press(self, key):
         try:
@@ -67,6 +64,7 @@ class NLInputPipePublisher(Node):
                 
         if key == keyboard.Key.esc:  # Exit on ESC key release
             return False
+
 
 def main():
     rclpy.init()
