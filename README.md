@@ -15,7 +15,6 @@ Install packages:
 ```
 conda env create -f environment.yml
 cd <your_ws>/src/natural_language_processing
-git clone https://huggingface.co/hexgrad/Kokoro-82M natural_language_processing/text_to_speech/Kokoro
 ```
 
 ## Usage
@@ -24,3 +23,8 @@ git clone https://huggingface.co/hexgrad/Kokoro-82M natural_language_processing/
 ros2 run natural_language_processing nl_node
 ```
 
+## FAQ:
+
+- If recording not working: Try to copy the alsa lib to the miniconda
+`mkdir ~/miniconda3/envs/<conda env>/lib/alsa-lib/`
+`sudo cp /usr/lib/x86_64-linux-gnu/alsa-lib/* ~/miniconda3/envs/<conda env>/lib/alsa-lib/`

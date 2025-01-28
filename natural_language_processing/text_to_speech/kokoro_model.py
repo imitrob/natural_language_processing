@@ -1,28 +1,27 @@
 
-from natural_language_processing.text_to_speech.Kokoro.models import build_model
-from natural_language_processing.text_to_speech.Kokoro.kokoro import generate
-import natural_language_processing
-import torch
 from playsound import playsound
 import soundfile as sf
+from kokoro import KPipeline
+from IPython.display import display, Audio
 
 class Chatterbox():
     def __init__(self, device="cuda:0"):
-        self.model = build_model(f'{natural_language_processing.tts_path}/Kokoro/kokoro-v0_19.pth', device)
-        self.voice_name = [
-            'af', # Default voice is a 50-50 mix of Bella & Sarah
-            'af_bella', 'af_sarah', 'am_adam', 'am_michael',
-            'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis',
-            'af_nicole', 'af_sky',
-        ][0]
-        self.voicepack = torch.load(f'{natural_language_processing.tts_path}/Kokoro/voices/{self.voice_name}.pt', weights_only=True).to(device)
-        print(f'Loaded voice: {self.voice_name}')
+        self.pipeline = KPipeline(lang_code='a')
         
     def speak(self, text:str = "How could I know? It's an unanswerable question. Like asking an unborn child if they'll lead a good life. They haven't even been born."):
-        audio, out_ps = generate(self.model, text, self.voicepack, lang=self.voice_name[0])
-        sf.write("output.wav", audio, 24000)
-        playsound("output.wav", block=True)
-
+        generator = self.pipeline(
+            text, voice='af_bella',
+            speed=1, split_pattern=''
+        )
+        for i, (gs, ps, audio) in enumerate(generator):
+            # print(i)  # i => index
+            # print(gs) # gs => graphemes/text
+            # print(ps) # ps => phonemes
+            display(Audio(data=audio, rate=24000, autoplay=i==0))
+            sf.write(f'output.wav', audio, 24000) # save each audio file
+            playsound("output.wav", block=True)
+            return
+        
 def main():
     cb = Chatterbox()
     cb.speak()

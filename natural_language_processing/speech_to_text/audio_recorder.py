@@ -1,55 +1,55 @@
-# import sounddevice as sd
+import sounddevice as sd
 import numpy as np
-# import scipy.io.wavfile as wav
+import scipy.io.wavfile as wav
 import threading
 import time
 # import subprocess
 
 
-# class SoundDeviceRecorder():
-#     def __init__(self,
-#                  fs=44100, # Sample rate
-#                 ):
-#         # Global variables
-#         self.is_recording = False
-#         self.recording_thread = None
-#         self.fs = fs
-#         self.recorded_data = []
+class SoundDeviceRecorder():
+    def __init__(self,
+                 fs=44100, # Sample rate
+                ):
+        # Global variables
+        self.is_recording = False
+        self.recording_thread = None
+        self.fs = fs
+        self.recorded_data = []
 
-#     def record_audio(self):
-#         self.recorded_data = []  # Reset recorded data before starting
+    def record_audio(self):
+        self.recorded_data = []  # Reset recorded data before starting
 
-#         def callback(indata, frames, time, status):
-#             if status:
-#                 print(status)
-#             self.recorded_data.append(indata.copy())
+        def callback(indata, frames, time, status):
+            if status:
+                print(status)
+            self.recorded_data.append(indata.copy())
 
-#         with sd.InputStream(samplerate=self.fs, channels=2, callback=callback):
-#             while self.is_recording:
-#                 sd.sleep(100)
+        with sd.InputStream(samplerate=self.fs, channels=1, callback=callback):
+            while self.is_recording:
+                sd.sleep(100)
     
-#     def start_recording(self, duration=5):
-#         if not self.is_recording:
-#             self.is_recording = True
-#             self.recording_thread = threading.Thread(target=self.record_audio)
-#             self.recording_thread.start()
-#             print("Recording started...")
+    def start_recording(self, duration=5):
+        if not self.is_recording:
+            self.is_recording = True
+            self.recording_thread = threading.Thread(target=self.record_audio)
+            self.recording_thread.start()
+            print("Recording started...")
     
-#     def stop_recording(self):
-#         if self.is_recording:
-#             self.is_recording = False
-#             self.recording_thread.join()  # Wait for recording thread to finish
-#             print("Recording stopped...")
-#             file_name = self.save_recording()
-#             return file_name
-#         return None
+    def stop_recording(self):
+        if self.is_recording:
+            self.is_recording = False
+            self.recording_thread.join()  # Wait for recording thread to finish
+            print("Recording stopped...")
+            file_name = self.save_recording()
+            return file_name
+        return None
     
-#     def save_recording(self):
-#         audio_data = np.concatenate(self.recorded_data, axis=0)  # Combine recorded data
-#         file_name = f"recording_{int(time.time())}.wav"
-#         wav.write(file_name, self.fs, audio_data)
-#         print(f"Recording saved to {file_name}")
-#         return file_name
+    def save_recording(self):
+        audio_data = np.concatenate(self.recorded_data, axis=0)  # Combine recorded data
+        file_name = f"recording_{int(time.time())}.wav"
+        wav.write(file_name, self.fs, audio_data)
+        print(f"Recording saved to {file_name}")
+        return file_name
 
 # class PopelkaRecorder(): # Working on Popelka-PC
 #     def start_recording(output_file="recording.wav", duration=5, sound_card=1):
@@ -64,12 +64,41 @@ import time
         
 #         subprocess.run(command, check=True)
 
+import subprocess, time
+
+class VisionRecorder():
+    def __init__(self):
+        self.start_recording_time = 0.0
+        self.duration = 5
+    def start_recording(self, output_file="recording.wav", duration=5, sound_card=3):
+        self.duration = duration
+        self.output_file = output_file
+        command = [
+            "pasuspender", "--", "arecord", 
+            f"-D", f"plughw:{sound_card},0",
+            "-f", "cd",
+            "-t", "wav",
+            "-d", str(duration),
+            output_file
+        ]
+        
+        subprocess.run(command, check=True)
+        self.start_recording_time = time.time()
+
+
+    
+    def stop_recording(self):
+        while (self.start_recording_time + self.duration + 1.0 > time.time()):
+            time.sleep(0.5)
+            print(f"{self.start_recording_time} + {self.duration} + 1.0 < {time.time()}", flush=True)
+        return self.output_file
+
 import pyaudio
 import wave
 
 class PyAudioRecorder():
     FORMAT = pyaudio.paInt32  # 16-bit audio format
-    CHANNELS = 1             # Mono
+    CHANNELS = 2             # Mono
     CHUNK = 1024             # Buffer size
     OUTPUT_FILE = f"output_{np.random.randint(10000)}.wav"
 
@@ -126,11 +155,14 @@ class PyAudioRecorder():
             return self.OUTPUT_FILE
         return None
 
-AudioRecorder = PyAudioRecorder
+# Choose the recorder that works for you
+AudioRecorder = VisionRecorder
 
 if __name__ == "__main__":
     rec = AudioRecorder()
     rec.start_recording()
-    time.sleep(2)
+    time.sleep(5)
     file = rec.stop_recording()
     print("Saved as: ", file)
+
+
