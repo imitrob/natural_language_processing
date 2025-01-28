@@ -9,6 +9,7 @@ O = ['cup', 'bowl']
 
 def attach_all_labels(output):
     output["action_probs"] = np.zeros(len(A))
+
     output[output["target_action"]] = 1.0
     output["action"] = A
 
@@ -17,3 +18,4 @@ def attach_all_labels(output):
     output["object"] = O
 
     return output
+

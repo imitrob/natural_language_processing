@@ -1,0 +1,24 @@
+name: nlp
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - robostack-staging
+dependencies:
+  - python
+  - pip
+  - pytorch # make sure the cpu version is NOT installed
+  - pynput
+  - python-sounddevice
+  - scipy
+  - transformers
+  - accelerate
+  - ros-humble-desktop
+  - git
+  - lfs
+  - pip:
+      - phonemizer
+      - munch
+      - py-espeak-ng
+
+

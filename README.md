@@ -13,7 +13,9 @@ See `nl_node.py` for more details.
 
 Install packages:
 ```
-conda install -c conda-forge -c pytorch -c robostack-staging pytorch pynput python-sounddevice scipy transformers accelerate ros-humble-desktop
+conda env create -f environment.yml
+cd <your_ws>/src/natural_language_processing
+git clone https://huggingface.co/hexgrad/Kokoro-82M natural_language_processing/text_to_speech/Kokoro
 ```
 
 ## Usage

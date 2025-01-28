@@ -128,7 +128,7 @@ class SentenceProcessor():
 
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.float16,
+            torch_dtype=torch.float32,
             device_map="auto",
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -229,7 +229,7 @@ class SentenceProcessor():
         if "relationship: " in str:
             str = str.split("relationship: ")[-1]
             return "relationship", str
-        raise Exception()
+        raise Exception(f"Either 'action:', 'object:', 'color: ' or 'relationship': in string {str}")
 
 def main():
     sp = SentenceProcessor()
