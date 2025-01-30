@@ -68,9 +68,10 @@ import subprocess, time
 
 class VisionRecorder():
     def __init__(self):
-        self.start_recording_time = 0.0
         self.duration = 5
-    def start_recording(self, output_file="recording.wav", duration=5, sound_card=3):
+        self.is_recording = False
+    def start_recording(self, output_file="recording.wav", duration=5, sound_card=2):
+        self.is_recording = True
         self.duration = duration
         self.output_file = output_file
         command = [
@@ -83,14 +84,11 @@ class VisionRecorder():
         ]
         
         subprocess.run(command, check=True)
-        self.start_recording_time = time.time()
-
-
+        self.is_recording = False
     
     def stop_recording(self):
-        while (self.start_recording_time + self.duration + 1.0 > time.time()):
-            time.sleep(0.5)
-            print(f"{self.start_recording_time} + {self.duration} + 1.0 < {time.time()}", flush=True)
+        while self.is_recording:
+            time.sleep(0.1)
         return self.output_file
 
 import pyaudio

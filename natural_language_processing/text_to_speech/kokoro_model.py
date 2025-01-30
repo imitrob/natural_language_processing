@@ -11,16 +11,16 @@ class Chatterbox():
     def speak(self, text:str = "How could I know? It's an unanswerable question. Like asking an unborn child if they'll lead a good life. They haven't even been born."):
         generator = self.pipeline(
             text, voice='af_bella',
-            speed=1, split_pattern=''
+            speed=1, split_pattern='thiswayitwillneversplit'
         )
         for i, (gs, ps, audio) in enumerate(generator):
             # print(i)  # i => index
             # print(gs) # gs => graphemes/text
             # print(ps) # ps => phonemes
-            display(Audio(data=audio, rate=24000, autoplay=i==0))
+            # display(Audio(data=audio, rate=24000, autoplay=i==0))
             sf.write(f'output.wav', audio, 24000) # save each audio file
             playsound("output.wav", block=True)
-            return
+            
         
 def main():
     cb = Chatterbox()

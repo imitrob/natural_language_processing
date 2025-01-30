@@ -1,131 +1,19 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
+# from natural_language_processing.sentence_instruct_transformer.role_config.tiago import ROLE_DESCRIPTION
+from natural_language_processing.sentence_instruct_transformer.role_config.gesturenlu import ROLE_DESCRIPTION
 
-
-
-ROLE_DESCRIPTION = """
-You are an assistant that extracts the action, objects, spatial relationships, and their colors from user sentences. Output the result as: action, first object, second object, spatial relationship, first object color, second object color. Always specify the spatial relationship, such as 'on top', 'into', or 'near'. If there is no second object, color, or spatial relationship, return null for those fields. Colors are adjectives and should never be classified as objects.
-
-actions are: pick, put, pour, place, stack, unglue.
-objects are: cup, book, water, ball, cup, laptop, cleaner, tape, cube, drawer 
-colors are: green, red, yellow, blue, pink
-
-Here are some examples:
-
-
-   Input: 'Put the book on top of the drawer.'
-   Output: 'action: put, object: book, object: drawer, relationship: on top, color: null, color: null'
-
-   Input: 'Put the cup into the drawer.'
-   Output: 'action: put into, object: cup, object: drawer, relationship: null, color: null, color: null'
-
-   Input: 'Place the ball near the chair.'
-   Output: 'action: place, object: ball, object: chair, relationship: near, color: null, color: null'
-
-   Input: 'Pick up the red ball.'
-   Output: 'action: pick up, object: ball, object: null, relationship: null, color: null, color: red'
-   
-   Input: 'Stack the boxes on top of each other.'
-   Output: 'action: stack, object: boxes, object: each other, relationship: on top, color: null, color: null'
-
-   Input: 'Pick up the blue cup.'
-   Output: 'action: pick, object: cup, object: null, relationship: up, color: blue, color: null'
-
-   Input: 'Put the red book on the table.'
-   Output: 'action: put, object: book, object: table, relationship: on, color: red, color: null'
-   
-   Input: 'Pour the water into the green bowl.'
-   Output: 'action: pour, object: water, object: bowl, relationship: into, color: null, color: green'
-
-   Input: 'Place the yellow ball in the basket.'
-   Output: 'action: place, object: ball, object: basket, relationship: in, color: yellow, color: null'
-
-   Input: 'Put the cup in the drawer.'
-   Output: 'action: put, object: cup, object: drawer, relationship: in, color: null, color: null'
-   
-   Input: 'Pour the water into the bowl.'
-   Output: 'action: pour, object: water, object: bowl, relationship: into, color: null, color: null'
-   
-   Input: 'Pick up the red book.'
-   Output: 'action: pick, object: book, object: null, relationship: up, color: red, color: null'
-
-   Input: 'Place the laptop on the desk.'
-   Output: 'action: place, object: laptop, object: desk, relationship: on, color: null, color: null'
-
-   Input: 'stack cleaner to crackers'
-   Output: 'action: stack, object: cleaner, object: crackers, relationship: to, color: null, color: null'
-
-   Input: 'unglue tape from box'
-   Output: 'action: unglue, object: tape, object: box, relationship: from, color: null, color: null'
-
-   Input: 'put a cube into the drawer'
-   Output: 'action: put, object: cube, object: drawer, relationship: into, color: null, color: null'
-
-   Input: 'pick the red cube'
-   Output: 'action: pick, object: cube, object: null, relationship: null, color: red, color: null'
-
-   Input: 'stack the cleaner to the cup'
-   Output: 'action: stack, object: cleaner, object: cup, relationship: to, color: null, color: null'
-
-   Input: 'Put it on top of the drawer'
-   Output: 'action: put, object: drawer, object: null, relationship: on, color: null, color: null'
-
-   Input: 'Put it into the drawer'
-   Output: 'action: put into, object: drawer, object: null, relationship: into, color: null, color: null'
-
-   For every sentence, always identify the action, objects, spatial relationship, and their colors. If any information is missing, return 'null' for that field.
-"""
-
-ROLE_DESCRIPTION_TIAGO = """
-You are an assistant that extracts the action, objects, action parameter, and colors of objects from user sentences. 
-Output the result as: action, [first object, second object], action parameter, [first object color, second object color].
-If there is no second object, color, or relationship, return null for those fields. 
-Colors are adjectives and should never be classified as objects.
-
-actions are: pick, put.
-objects are: mug, mustard, apple, pear, plate, banana, tomato soup, plum, citron.
-colors are: green, red, yellow, blue, pink.
-relationships are: on top, into, up, down, same color, same shape, left to, right to.
-
-Here are some examples:
-
-    Input: 'Put the mustard on top of the drawer.'
-    Output: 'action: put, object: mustard, object: drawer, action parameter: on top, color: null, color: null'
-    
-    Input: 'Put the mug into the drawer.'
-    Output: 'action: put, object: mug, object: drawer, action parameter: into, color: null, color: null'
-
-    Input: 'Pick up the red apple.'
-    Output: 'action: pick, object: apple, null, action parameter: up, color: red, color: null'
-
-    Input: 'Pick object with same color as this one.'
-    Output: 'action: pick, object: null, null, action parameter: color, color: null, color: null'
-
-    Input: 'Pick object with same shape as this one.'
-    Output: 'action: pick, object: null, object: null, action parameter: shape, color: null, color: null'
-
-    Input: 'Pick object left to this one.'
-    Output: 'action: pick, object: null, object: null, action parameter: left, color: null, color: null'
-
-    Input: 'Pick object right to this one.'
-    Output: 'action: pick, object: null, object: null, action parameter: right, color: null, color: null'
-    
-    Input: 'Pick a banana.'
-    Output: 'action: pick, object: null, object: null, action parameter: null, color: null, color: null'
-    
-    Input: 'Pick this one.'
-    Output: 'action: pick, object: null, object: null, action parameter: null, color: null, color: null'
-    
-    Input: 'Pick object left to a banana.'
-    Output: 'action: pick, object: null, object: banana, action parameter: left, color: null, color: null'
-
-For every sentence, always identify the action, objects, action parameter, and their colors. If any information is missing, return 'null' for that field.
-"""
 
 class SentenceProcessor():
-    def __init__(self, model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"):
+    def __init__(self, model_name: str = "SultanR/SmolTulu-1.7b-Reinforced"):
+        """Good models for instruct:
+            model_name = Qwen/Qwen2.5-0.5B-Instruct (1GB VRAM)
+            model_name = SultanR/SmolTulu-1.7b-Reinforced (3.3GB VRAM)
 
+        Args:
+            model_name (str, optional): _description_. Defaults to "SultanR/SmolTulu-1.7b-Reinforced".
+        """
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.float32,
@@ -133,15 +21,12 @@ class SentenceProcessor():
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-
-
-
     def predict(self, prompt: str):
         """ Returns instruct dict in format:
             Dict[str, str]: keys are always ("target_action", "target_object", "target_storage")
         """
         response = self.raw_predict(prompt)
-        print(response)
+        print(response, flush=True)
 
         response = response.replace(", ", ",")
         response = response.replace("'", "")
@@ -160,12 +45,20 @@ class SentenceProcessor():
             k_prev = k
         return r
 
-    def raw_predict(self, prompt: str) -> str:
+    def raw_predict(self, 
+                    prompt: str, 
+                    role_description: str = ROLE_DESCRIPTION,
+                    max_new_tokens: int = 50, 
+                    temperature: float = 0.0, 
+                    top_p: float = 1.0,
+                    repetition_penalty: float = 1.1,
+
+                    ) -> str:
         """ Returns string output from LM. """
         messages = [
             {
             "role": "system",
-            "content": ROLE_DESCRIPTION_TIAGO,
+            "content": role_description,
             },
             {"role": "user", "content": prompt}
         ]
@@ -176,18 +69,24 @@ class SentenceProcessor():
         )
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
 
+
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=50,
-            temperature = 0.3,
-            top_p = 0.9,
+            max_new_tokens=max_new_tokens,  # Allow space for full format
+            temperature=temperature,
+            top_p=top_p,  # Use full distribution
+            repetition_penalty=repetition_penalty,
+            eos_token_id=self.tokenizer.eos_token_id,
+            do_sample=False  # Force greedy decoding
         )
-        generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-        ]
-
-        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-        return response
+        # Decode only the new tokens
+        response = self.tokenizer.decode(
+            generated_ids[0][model_inputs.input_ids.shape[-1]:],
+            skip_special_tokens=True
+        )
+    
+        # Post-process to ensure format
+        return response.split("\n")[0].strip()
 
     def remove_article(self, str):
         if str[0:2] == "a ":
@@ -218,7 +117,7 @@ class SentenceProcessor():
         if "action: " in str:
             str = str.split("action: ")[-1]
             str = self.remove_relation(str)
-            return "action", str
+            return "target_action", str
         if "object: " in str:
             str = str.split("object: ")[-1]
             str = self.remove_color(str)
@@ -233,9 +132,13 @@ class SentenceProcessor():
 
 def main():
     sp = SentenceProcessor()
-    prompt = "Pick for me the blue cup in the middle of the room."
-    print(f"Sample prompt: {prompt}")
-    print(f"Result: {sp.predict(prompt)}")
+    try:
+        while True:
+            prompt = input("Enter: ")
+            # print(f"Sample prompt: {prompt}")
+            print(f"Result: {sp.raw_predict(prompt)}")
+    except KeyboardInterrupt:
+        exit()
 
 if __name__ == "__main__":
     main()
