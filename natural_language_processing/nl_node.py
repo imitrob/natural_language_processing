@@ -7,7 +7,7 @@ from hri_msgs.msg import HRICommand as HRICommandMSG # Download https://github.c
 from pynput import keyboard
 
 from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
-from natural_language_processing.speech_to_text.whisper_model import SpeechToTextModel
+from natural_language_processing.speech_to_text.whisperx_model import SpeechToTextModel
 from natural_language_processing.sentence_instruct_transformer.sentence_processor import SentenceProcessor
 from natural_language_processing.scene_reader import attach_all_labels
 
