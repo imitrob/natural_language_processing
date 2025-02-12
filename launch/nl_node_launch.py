@@ -6,7 +6,7 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    user_arg = DeclareLaunchArgument('user_name', default_value='melichar', description='User name')
+    user_arg = DeclareLaunchArgument('user_name', default_value='casper', description='User name')
 
     homing_node = Node(
         package='natural_language_processing',

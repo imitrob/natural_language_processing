@@ -17,7 +17,7 @@ RECORD_NAME = "recording.wav"
 class NLInputPipePublisher(Node):
     def __init__(self):
         super(NLInputPipePublisher, self).__init__("nlinput_node")
-        self.user = self.declare_parameter("user_name", "melichar").get_parameter_value().string_value # replaced if launch
+        self.user = self.declare_parameter("user_name", "casper").get_parameter_value().string_value # replaced if launch
         
         self.pub_original = self.create_publisher(HRICommandMSG, "/modality/nlp_original", 5)
         self.pub = self.create_publisher(HRICommandMSG, "/modality/nlp", 5)
@@ -68,7 +68,7 @@ class NLInputPipePublisher(Node):
 
     def on_release(self, key):
         if key == keyboard.Key.space:  # Stop recording on space key release
-            recording_name = self.rec.stop_recording()
+            recording_name, _ = self.rec.stop_recording()
             if recording_name is not None:
                 print("Processing started", flush=True)
                 self.forward(recording_name)

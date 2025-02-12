@@ -21,11 +21,18 @@ class SentenceProcessor():
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    def predict(self, prompt: str):
-        """ Returns instruct dict in format:
+    def predict(self, 
+                prompt: str,
+                role_description: str = ROLE_DESCRIPTION,
+                max_new_tokens: int = 50, 
+                temperature: float = 0.0, 
+                top_p: float = 1.0,
+                repetition_penalty: float = 1.1,
+            ) -> dict:
+        """ Returns as "parsed" instruct dict in format:
             Dict[str, str]: keys are always ("target_action", "target_object", "target_storage")
         """
-        response = self.raw_predict(prompt)
+        response = self.raw_predict(prompt, role_description, max_new_tokens, temperature, top_p, repetition_penalty)
         print(response, flush=True)
 
         response = response.replace(", ", ",")
@@ -52,7 +59,6 @@ class SentenceProcessor():
                     temperature: float = 0.0, 
                     top_p: float = 1.0,
                     repetition_penalty: float = 1.1,
-
                     ) -> str:
         """ Returns string output from LM. """
         messages = [
