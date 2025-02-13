@@ -94,6 +94,83 @@ class SentenceProcessor():
         # Post-process to ensure format
         return response.split("\n")[0].strip()
 
+    def predict_with_probs(self, 
+                           prompt: list, 
+                           user_input: str, 
+                           role_description: str = "", 
+                           max_new_tokens: int = 50
+                           ):
+        """Generate text using LM while incorporating word probabilities from ASR output.
+        
+        >>> output = model.predict_with_probs(
+                prompt=[
+                    [0.0, {"Pick": 1.0, "Kick": 0.2}],
+                    [0.1, {"a": 0.9, "the": 0.1}],
+                    [0.2, {"blue": 0.8, "green": 0.2}],
+                    [0.3, {"box": 0.7, "blocks": 0.3}]
+                ],
+                user_input="Transcribe the following command:",
+                max_new_tokens=4
+            )
+        """
+        # Prepare chat template
+        messages = [
+            {"role": "system", "content": role_description},
+            {"role": "user", "content": user_input}
+        ]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        
+        # Get only the word probability entries (ignore timestamps)
+        word_entries = [entry[1] for entry in prompt]
+        
+        # Prepare logit biases for each generation step
+        logit_biases = []
+        for i in range(min(len(word_entries), max_new_tokens)):
+            
+            word_probs = word_entries[i] if i < len(word_entries) else {}
+            bias = {}
+            
+            if word_probs:
+                total_prob = sum(word_probs.values())
+                for word, prob in word_probs.items():
+                    tokenized = self.tokenizer.tokenize(word)
+                    if len(tokenized) == 1:  # Only single-token words
+                        token_id = self.tokenizer.convert_tokens_to_ids(tokenized[0])
+                        if token_id != self.tokenizer.unk_token_id:
+                            normalized_prob = prob / total_prob
+                            bias[token_id] = torch.log(torch.tensor(normalized_prob)).item()
+            logit_biases.append(bias)
+        
+        # Debug: Print logit biases
+        for i, bias in enumerate(logit_biases):
+            print(f"Step {i}: {bias}")
+
+        print("LogitBiasProcessor(logit_biases)")
+        print(LogitBiasProcessor(logit_biases))
+        # Generate text with logit biases
+        generated_ids = self.model.generate(
+            **model_inputs,
+            max_new_tokens=max_new_tokens,
+            logits_processor=[LogitBiasProcessor(logit_biases)],
+            do_sample=True,  # Use sampling to respect probabilities
+            temperature=0.5,  # Adjust temperature as needed
+            top_p=1.0,  # Use full distribution
+            repetition_penalty=1.1,
+            eos_token_id=self.tokenizer.eos_token_id
+        )
+        
+        # Decode and return
+        response = self.tokenizer.decode(
+            generated_ids[0][model_inputs.input_ids.shape[-1]:],
+            skip_special_tokens=True
+        )
+        return response.strip()
+    
     def remove_article(self, str):
         if str[0:2] == "a ":
             str = str.replace("a ", "")
@@ -136,8 +213,38 @@ class SentenceProcessor():
             return "relationship", str
         raise Exception(f"Either 'action:', 'object:', 'color: ' or 'relationship': in string {str}")
 
+class LogitBiasProcessor:
+    """Custom logits processor to apply logit biases."""
+    def __init__(self, logit_biases):
+        self.logit_biases = logit_biases
+        self.step = 0
+    
+    def __call__(self, input_ids, scores):
+        if self.step < len(self.logit_biases):
+            bias = self.logit_biases[self.step]
+            for token_id, value in bias.items():
+                scores[0, token_id] += value
+            print(f"Applied bias at step {self.step}: {bias}")  # Debug
+        self.step += 1
+        return scores
+
 def main():
     sp = SentenceProcessor()
+    print(f"Result: {sp.raw_predict('Pick a green book.')}")
+
+    out = sp.predict_with_probs(
+        prompt=[
+            [0.0, {"Pick": 1.0, "Kick": 0.2}],
+            [0.1, {"a": 0.9, "the": 0.1}],
+            [0.2, {"blue": 0.8, "green": 0.2}],
+            [0.3, {"box": 0.7, "blocks": 0.3}]
+        ],
+        user_input="",
+        max_new_tokens=100
+    )
+    print(f"Result: {out}")
+
+
     try:
         while True:
             prompt = input("Enter: ")
