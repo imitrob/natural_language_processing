@@ -29,7 +29,7 @@ class NLInputPipePublisher(Node):
 
     def forward(self, recording_name: str):
         print("1. Speech to text", flush=True)
-        sentence_text = self.stt.forward(recording_name)
+        sentence_text = self.stt(recording_name)
         print("Sentence text: ", sentence_text, flush=True)
         print("2. Sentence processing", flush=True)
         output = self.sentence_processor.predict(sentence_text)

@@ -28,7 +28,7 @@ class SpeechToTextModel():
 
 
     def callback(self, msg):
-        self.pub.publish(data=self.forward(msg.data))
+        self.pub.publish(data=self(msg.data))
 
-    def forward(self, file: str = "TestSound"):
+    def __call__(self, file: str = "TestSound"):
         return self.pipe(file)['text']
