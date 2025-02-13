@@ -25,7 +25,7 @@ class SpeechToTextModel():
         self.pub.publish(data=self(msg.data))
 
     def __call__(self, file: str = "TestSound"):
-        return self.raw_transcribe(file)[0][0]['text']
+        return self.raw_transcribe(file)[0]['text']
 
     def is_audio_too_short(self, file: str, duration_thr: float = 0.5): # duration_thr [s]
         audio, sample_rate = sf.read(file)
@@ -38,18 +38,16 @@ class SpeechToTextModel():
     def remove_audio(self, file: str):
         os.remove(file)
 
-    def raw_transcribe(self, file: str, best_of: int = 1):
+    def raw_transcribe(self, file: str):
         audio = whisperx.load_audio(file)
         try:
-            results = []
-            for i in range(best_of):
-                results.append( self.model.transcribe(audio, batch_size=self.batch_size))
+            result = self.model.transcribe(audio, batch_size=self.batch_size)
             
         except ValueError:
             print(f"{cc.W}You probably pressed twice, try again! (waveform not in right format, is being manipulated){cc.E}", flush=True)
             return self.UNSUCCESSFUL
 
-        if len(results[0]['segments']) == 0:
+        if len(result['segments']) == 0:
             return self.UNSUCCESSFUL
 
         # delete model if low on GPU resources
@@ -57,12 +55,10 @@ class SpeechToTextModel():
 
         # 2. Align whisper output
         aligned_results = []
-        for result in results:
-            model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=self.device)
-            aligned_result = whisperx.align(result["segments"], model_a, metadata, audio, self.device, return_char_alignments=False)
-            aligned_results.append(aligned_result["segments"])
+        model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=self.device)
+        aligned_result = whisperx.align(result["segments"], model_a, metadata, audio, self.device, return_char_alignments=False)
 
-        return aligned_results
+        return aligned_result["segments"]
 
     def stamped_transcribe(self, stamped_filename: dict):
         """Returns pairs (timestamp, word) of sentence
@@ -74,7 +70,7 @@ class SpeechToTextModel():
                 [0.3, "box"],
             ]
         """        
-        whisperx_dict = self.raw_transcribe(stamped_filename['file'])[0]
+        whisperx_dict = self.raw_transcribe(stamped_filename['file'])
         return self.whisperx_result_to_timestamped_words(whisperx_dict, stamped_filename["timestamp"])
 
     def whisperx_result_to_timestamped_words(self, whisperx_dict: dict, start_timestamp: float):
