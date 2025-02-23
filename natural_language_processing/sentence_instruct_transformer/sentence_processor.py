@@ -1,4 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import LogitsProcessor
 import torch
 
 # from natural_language_processing.sentence_instruct_transformer.role_config.tiago import ROLE_DESCRIPTION
@@ -10,6 +11,7 @@ class SentenceProcessor():
         """Good models for instruct:
             model_name = Qwen/Qwen2.5-0.5B-Instruct (1GB VRAM)
             model_name = SultanR/SmolTulu-1.7b-Reinforced (3.3GB VRAM)
+            deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 
         Args:
             model_name (str, optional): _description_. Defaults to "SultanR/SmolTulu-1.7b-Reinforced".
@@ -22,7 +24,7 @@ class SentenceProcessor():
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def predict(self, 
-                prompt: str,
+                prompt: str, # input sentence is string
                 role_description: str = ROLE_DESCRIPTION,
                 max_new_tokens: int = 50, 
                 temperature: float = 0.0, 
@@ -94,83 +96,48 @@ class SentenceProcessor():
         # Post-process to ensure format
         return response.split("\n")[0].strip()
 
-    def predict_with_probs(self, 
-                           prompt: list, 
-                           user_input: str, 
-                           role_description: str = "", 
-                           max_new_tokens: int = 50
-                           ):
-        """Generate text using LM while incorporating word probabilities from ASR output.
-        
-        >>> output = model.predict_with_probs(
-                prompt=[
-                    [0.0, {"Pick": 1.0, "Kick": 0.2}],
-                    [0.1, {"a": 0.9, "the": 0.1}],
-                    [0.2, {"blue": 0.8, "green": 0.2}],
-                    [0.3, {"box": 0.7, "blocks": 0.3}]
-                ],
-                user_input="Transcribe the following command:",
-                max_new_tokens=4
-            )
-        """
-        # Prepare chat template
-        messages = [
-            {"role": "system", "content": role_description},
-            {"role": "user", "content": user_input}
-        ]
-        text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-        
-        # Get only the word probability entries (ignore timestamps)
-        word_entries = [entry[1] for entry in prompt]
-        
-        # Prepare logit biases for each generation step
-        logit_biases = []
-        for i in range(min(len(word_entries), max_new_tokens)):
-            
-            word_probs = word_entries[i] if i < len(word_entries) else {}
-            bias = {}
-            
-            if word_probs:
-                total_prob = sum(word_probs.values())
-                for word, prob in word_probs.items():
-                    tokenized = self.tokenizer.tokenize(word)
-                    if len(tokenized) == 1:  # Only single-token words
-                        token_id = self.tokenizer.convert_tokens_to_ids(tokenized[0])
-                        if token_id != self.tokenizer.unk_token_id:
-                            normalized_prob = prob / total_prob
-                            bias[token_id] = torch.log(torch.tensor(normalized_prob)).item()
-            logit_biases.append(bias)
-        
-        # Debug: Print logit biases
-        for i, bias in enumerate(logit_biases):
-            print(f"Step {i}: {bias}")
+    def prob_predict_soft_embedding(self, 
+            prompt: str, 
+            role_description: str = ROLE_DESCRIPTION,
+            max_new_tokens: int = 50, 
+            temperature: float = 0.0, 
+            top_p: float = 1.0,
+            repetition_penalty: float = 1.1,
+            ) -> str:
+        # Load the model and tokenizer
+        # model_name = "gpt2"
+        # tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # model = AutoModelForCausalLM.from_pretrained(model_name)
 
-        print("LogitBiasProcessor(logit_biases)")
-        print(LogitBiasProcessor(logit_biases))
-        # Generate text with logit biases
-        generated_ids = self.model.generate(
-            **model_inputs,
-            max_new_tokens=max_new_tokens,
-            logits_processor=[LogitBiasProcessor(logit_biases)],
-            do_sample=True,  # Use sampling to respect probabilities
-            temperature=0.5,  # Adjust temperature as needed
-            top_p=1.0,  # Use full distribution
-            repetition_penalty=1.1,
-            eos_token_id=self.tokenizer.eos_token_id
-        )
-        
-        # Decode and return
-        response = self.tokenizer.decode(
-            generated_ids[0][model_inputs.input_ids.shape[-1]:],
-            skip_special_tokens=True
-        )
-        return response.strip()
-    
+        # Define the candidate words and their probabilities
+        word1, prob1 = "hello", 0.9
+        word2, prob2 = "yell", 0.1
+
+        # Tokenize the words (assumes each word tokenizes to a single token)
+        token_id_hello = self.tokenizer(word1, add_special_tokens=False)["input_ids"][0]
+        token_id_yell  = self.tokenizer(word2,  add_special_tokens=False)["input_ids"][0]
+
+        # Get the model's input embedding layer
+        embedding_layer = self.model.get_input_embeddings()
+
+        # Retrieve embeddings for the tokens
+        emb_hello = embedding_layer(torch.tensor(token_id_hello))
+        emb_yell  = embedding_layer(torch.tensor(token_id_yell))
+
+        # Compute the weighted (soft) embedding
+        soft_emb = prob1 * emb_hello + prob2 * emb_yell  # resulting in a single embedding vector
+
+        # Prepare inputs_embeds tensor with shape (batch_size, sequence_length, embedding_dim)
+        inputs_embeds = soft_emb.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, embedding_dim)
+
+        # Pass the soft embeddings to the model
+        outputs = self.model(inputs_embeds=inputs_embeds)
+        logits = outputs.logits
+
+        print("Logits shape:", logits.shape)
+
+
+
     def remove_article(self, str):
         if str[0:2] == "a ":
             str = str.replace("a ", "")
@@ -213,37 +180,21 @@ class SentenceProcessor():
             return "relationship", str
         raise Exception(f"Either 'action:', 'object:', 'color: ' or 'relationship': in string {str}")
 
-class LogitBiasProcessor:
-    """Custom logits processor to apply logit biases."""
-    def __init__(self, logit_biases):
-        self.logit_biases = logit_biases
-        self.step = 0
-    
-    def __call__(self, input_ids, scores):
-        if self.step < len(self.logit_biases):
-            bias = self.logit_biases[self.step]
-            for token_id, value in bias.items():
-                scores[0, token_id] += value
-            print(f"Applied bias at step {self.step}: {bias}")  # Debug
-        self.step += 1
-        return scores
 
 def main():
     sp = SentenceProcessor()
-    print(f"Result: {sp.raw_predict('Pick a green book.')}")
-
-    out = sp.predict_with_probs(
-        prompt=[
+    # print(f"Result: {sp.raw_predict('Pick a green book.')}")
+    
+    output = sp.predict_with_probs(
+        asr_prompt=[
             [0.0, {"Pick": 1.0, "Kick": 0.2}],
             [0.1, {"a": 0.9, "the": 0.1}],
             [0.2, {"blue": 0.8, "green": 0.2}],
             [0.3, {"box": 0.7, "blocks": 0.3}]
-        ],
-        user_input="",
-        max_new_tokens=100
+        ]
     )
-    print(f"Result: {out}")
-
+    print(f"Result: {output}")
+    # Returns: "Pick a blue box"
 
     try:
         while True:
