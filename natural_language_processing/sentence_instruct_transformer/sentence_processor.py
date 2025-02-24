@@ -96,48 +96,6 @@ class SentenceProcessor():
         # Post-process to ensure format
         return response.split("\n")[0].strip()
 
-    def prob_predict_soft_embedding(self, 
-            prompt: str, 
-            role_description: str = ROLE_DESCRIPTION,
-            max_new_tokens: int = 50, 
-            temperature: float = 0.0, 
-            top_p: float = 1.0,
-            repetition_penalty: float = 1.1,
-            ) -> str:
-        # Load the model and tokenizer
-        # model_name = "gpt2"
-        # tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # model = AutoModelForCausalLM.from_pretrained(model_name)
-
-        # Define the candidate words and their probabilities
-        word1, prob1 = "hello", 0.9
-        word2, prob2 = "yell", 0.1
-
-        # Tokenize the words (assumes each word tokenizes to a single token)
-        token_id_hello = self.tokenizer(word1, add_special_tokens=False)["input_ids"][0]
-        token_id_yell  = self.tokenizer(word2,  add_special_tokens=False)["input_ids"][0]
-
-        # Get the model's input embedding layer
-        embedding_layer = self.model.get_input_embeddings()
-
-        # Retrieve embeddings for the tokens
-        emb_hello = embedding_layer(torch.tensor(token_id_hello))
-        emb_yell  = embedding_layer(torch.tensor(token_id_yell))
-
-        # Compute the weighted (soft) embedding
-        soft_emb = prob1 * emb_hello + prob2 * emb_yell  # resulting in a single embedding vector
-
-        # Prepare inputs_embeds tensor with shape (batch_size, sequence_length, embedding_dim)
-        inputs_embeds = soft_emb.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, embedding_dim)
-
-        # Pass the soft embeddings to the model
-        outputs = self.model(inputs_embeds=inputs_embeds)
-        logits = outputs.logits
-
-        print("Logits shape:", logits.shape)
-
-
-
     def remove_article(self, str):
         if str[0:2] == "a ":
             str = str.replace("a ", "")
@@ -185,14 +143,7 @@ def main():
     sp = SentenceProcessor()
     # print(f"Result: {sp.raw_predict('Pick a green book.')}")
     
-    output = sp.predict_with_probs(
-        asr_prompt=[
-            [0.0, {"Pick": 1.0, "Kick": 0.2}],
-            [0.1, {"a": 0.9, "the": 0.1}],
-            [0.2, {"blue": 0.8, "green": 0.2}],
-            [0.3, {"box": 0.7, "blocks": 0.3}]
-        ]
-    )
+    output = sp.predict("Pick a blue box")
     print(f"Result: {output}")
     # Returns: "Pick a blue box"
 
