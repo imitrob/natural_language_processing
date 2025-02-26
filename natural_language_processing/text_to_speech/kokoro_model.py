@@ -8,6 +8,9 @@ class Chatterbox():
     def __init__(self, device="cuda:0"):
         self.pipeline = KPipeline(lang_code='a')
         
+    def delete(self):
+        del self.pipeline
+
     def speak(self, text:str = "How could I know? It's an unanswerable question. Like asking an unborn child if they'll lead a good life. They haven't even been born."):
         generator = self.pipeline(
             text, voice='af_bella',

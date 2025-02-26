@@ -11,21 +11,23 @@ class SpeechToTextModel():
                 ):
         super(SpeechToTextModel, self).__init__()
 
-        model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
         )
-        model.to(device)
+        self.model.to(device)
         processor = AutoProcessor.from_pretrained(model_id)
 
         self.pipe = pipeline(
             "automatic-speech-recognition",
-            model=model,
+            model=self.model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
             torch_dtype=torch_dtype,
             device=device,
         )
 
+    def delete(self):
+        del self.model
 
     def callback(self, msg):
         self.pub.publish(data=self(msg.data))

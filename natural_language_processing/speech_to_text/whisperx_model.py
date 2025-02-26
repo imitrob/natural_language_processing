@@ -21,6 +21,9 @@ class SpeechToTextModel():
         self.batch_size = batch_size
         self.device = device
 
+    def delete(self):
+        del self.model
+
     def callback(self, msg):
         self.pub.publish(data=self(msg.data))
 

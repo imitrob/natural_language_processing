@@ -131,7 +131,10 @@ class SpeechToTextModel():
         self.device = device
         self.processor = WhisperProcessor.from_pretrained(model_id)
         self.model = WhisperForConditionalGeneration.from_pretrained(model_id).to(self.device)
-        
+
+    def delete(self):
+        del self.model
+
     def __call__(self, audio_path: str):
         input_features = process_audio(self.processor, audio_path).to(self.device)
         # Generate transcription with timestamps and scores
