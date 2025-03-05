@@ -39,7 +39,7 @@ def discard_empty_words(output):
 
 
 def process_audio(processor, audio_path):
-    audio, sr = librosa.load(audio_path, sr=16000)
+    audio, sr = librosa.load(audio_path['file'], sr=16000)
     inputs = processor(audio, sampling_rate=sr, return_tensors="pt")
     return inputs.input_features
 
@@ -135,8 +135,8 @@ class SpeechToTextModel():
     def delete(self):
         del self.model
 
-    def __call__(self, audio_path: str):
-        input_features = process_audio(self.processor, audio_path).to(self.device)
+    def transcribe_to_probstamped(self, file: str, stamp: int = 0):
+        input_features = process_audio(self.processor, file).to(self.device)
         # Generate transcription with timestamps and scores
         result = self.model.generate(
             input_features,
@@ -167,6 +167,7 @@ class SpeechToTextModel():
                     if word.strip():  # Filter out empty or special tokens
                         timestamp = start_time + (end_time - start_time) * (i / len(token_ids))
                         output.append([round(timestamp, 2), alternatives])
+        print(output)
         
         merged_output = merge_subwords(output) # checkout connections to next words
         merged_output = merge_subwords(merged_output) # second round
@@ -177,5 +178,5 @@ class SpeechToTextModel():
 
 if __name__ == "__main__":
     pstt = SpeechToTextModel()
-    output = pstt("/home/imitlearn/lfd_ws/output.wav")
+    output = pstt.transcribe_to_probstamped(file = "/home/doma/lfd_ws/recording_174078312641.wav")
     print(output)

@@ -67,11 +67,34 @@ class SoundDeviceRecorder():
 
 import subprocess, time
 
+class HomeRecorder():
+    def __init__(self):
+        self.duration = 5
+        self.is_recording = False
+    def start_recording(self, output_file=f"recording_{int(time.time()*100)}.wav", duration=5, sound_card=3):
+        self.is_recording = True
+        self.duration = duration
+        self.output_file = output_file
+        command = [
+            'arecord', '-D', 'plughw:3,0', '-f', 'S16_LE', '-r', '24000', '-c', '1', '-t', 'wav', '-d', '5',# 'recording.wav'
+            # 'arecord', '-D', 'plughw:3,0', '-f', 'cd', '-t', 'wav', '-d', '5', 
+            output_file
+        ]
+        self.start_time = time.time()
+        
+        subprocess.run(command, check=True)
+        self.is_recording = False
+    
+    def stop_recording(self):
+        while self.is_recording:
+            time.sleep(0.1)
+        return self.output_file, self.start_time
+
 class VisionRecorder():
     def __init__(self):
         self.duration = 5
         self.is_recording = False
-    def start_recording(self, output_file=f"recording_{int(time.time()*100)}.wav", duration=5, sound_card=2):
+    def start_recording(self, output_file=f"recording_{int(time.time()*100)}.wav", duration=5, sound_card=3):
         self.is_recording = True
         self.duration = duration
         self.output_file = output_file

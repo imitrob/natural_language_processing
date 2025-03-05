@@ -32,5 +32,33 @@ class SpeechToTextModel():
     def callback(self, msg):
         self.pub.publish(data=self(msg.data))
 
-    def __call__(self, file: str = "TestSound"):
-        return self.pipe(file)['text']
+    def __call__(self, file: str = ""):
+        """ Convenience function"""
+        return self.transcribe_to_text(file)
+    
+    def transcribe_to_text(self, file: str):
+        assert isinstance(file, str)
+        r = self.pipe(file)["text"]
+        print("whisper out: ", r)
+        return r
+
+    def transcribe_to_stamped(self, file: str, stamp: int = 0.0):
+        l = self.transcribe_to_text(file).split(" ")
+        ret = []
+        for n,w in enumerate(l):
+            ret.append([n*0.2, w])
+        return ret
+
+    def transcribe_to_probstamped(self, file: str, stamp: int = 0.0):
+        l = self.transcribe_to_text(file).split(" ")
+        ret = []
+        for n,w in enumerate(l):
+            ret.append([n*0.2, {w: 1.0}])
+        return ret
+
+
+if __name__ == "__main__":
+    stt = SpeechToTextModel()
+    print(stt("/home/doma/lfd_ws/test0.wav"))
+    print(stt.transcribe_to_stamped("/home/doma/lfd_ws/test0.wav", stamp=170000))
+    print(stt.transcribe_to_probstamped("/home/doma/lfd_ws/test0.wav", stamp=170000))

@@ -63,7 +63,11 @@ class SpeechToTextModel():
 
         return aligned_result["segments"]
 
-    def stamped_transcribe(self, stamped_filename: dict):
+
+    def transcribe_to_text(self, file: str):
+        raise NotImplementedError()
+
+    def transcribe_to_stamped(self, file: str, stamp: int = 0):
         """Returns pairs (timestamp, word) of sentence
             Input: "Pick a blue box"
             Output: [
@@ -73,21 +77,31 @@ class SpeechToTextModel():
                 [0.3, "box"],
             ]
         """        
-        whisperx_dict = self.raw_transcribe(stamped_filename['file'])
-        return self.whisperx_result_to_timestamped_words(whisperx_dict, stamped_filename["timestamp"])
+        whisperx_dict = self.raw_transcribe(file)
+        return self.whisperx_result_to_timestamped_words(whisperx_dict, stamp)
 
     def whisperx_result_to_timestamped_words(self, whisperx_dict: dict, start_timestamp: float):
         timestamped_words = []
         for sentence in whisperx_dict:
             for word in sentence['words']:
+                print("word", word)
                 timestamped_words.append([float(start_timestamp) + word["end"], word['word']])
+        return timestamped_words
+
+    def transcribe_to_probstamped(self, file: str, stamp: int = 0):
+        whisperx_dict = self.raw_transcribe(file)
+
+        timestamped_words = []
+        for sentence in whisperx_dict:
+            for word in sentence['words']:
+                timestamped_words.append([float(stamp) + word["end"], {word['word']: 1.0}])
         return timestamped_words
 
 def main():
     stt = SpeechToTextModel()
-    output = stt("/home/imitlearn/lfd_ws/output.wav")
+    output = stt("/home/doma/lfd_ws/output.wav")
     print("1. ", output)
-    output = stt.stamped_transcribe({"file": "/home/imitlearn/lfd_ws/output.wav", "timestamp": 1700000})
+    output = stt.transcribe_to_stamped(file = "/home/doma/lfd_ws/output.wav", timestamp = 1700000)
     print("2. ", output)
 
 if __name__ == "__main__":
