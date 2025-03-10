@@ -15,10 +15,12 @@ dependencies:
   - accelerate
   - ros-humble-desktop
   - git
-  - lfs
+  - git-lfs
+  - playsound
+  - pysoundfile
   - pip:
       - phonemizer
       - munch
       - py-espeak-ng
       - kokoro
-
+      - ipython
