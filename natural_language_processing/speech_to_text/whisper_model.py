@@ -5,7 +5,7 @@ from datasets import load_dataset
 
 class SpeechToTextModel():
     def __init__(self,
-                 model_id = "openai/whisper-large-v3-turbo",
+                 model_id = "openai/whisper-large-v3-turbo", # 13 seconds on laptop
                  device = "cuda:0", # or "cpu"
                  torch_dtype = torch.float16 # torch.float32
                 ):
@@ -58,7 +58,26 @@ class SpeechToTextModel():
 
 
 if __name__ == "__main__":
+    import time
+    from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
+    rec = AudioRecorder()
+    rec.start_recording()
+    time.sleep(5)
+    file, stamp = rec.stop_recording()
+    
     stt = SpeechToTextModel()
-    print(stt("/home/doma/lfd_ws/test0.wav"))
-    print(stt.transcribe_to_stamped("/home/doma/lfd_ws/test0.wav", stamp=170000))
-    print(stt.transcribe_to_probstamped("/home/doma/lfd_ws/test0.wav", stamp=170000))
+    t0 = time.time()
+    text = stt(file)
+    print(f"Run (1/3): {text} time: {time.time()-t0}")
+    
+    t0 = time.time()
+    text = stt.transcribe_to_stamped(file, stamp)
+    print(f"Run (2/3): {text} time: {time.time()-t0}")
+    
+    t0 = time.time()
+    text = stt.transcribe_to_probstamped(file, stamp)
+    print(f"Run (3/3): {text} time: {time.time()-t0}")
+    
+
+
+
