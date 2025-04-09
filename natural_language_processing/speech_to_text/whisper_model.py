@@ -42,18 +42,18 @@ class SpeechToTextModel():
         print("whisper out: ", r)
         return r
 
-    def transcribe_to_stamped(self, file: str, stamp: int = 0.0):
+    def transcribe_to_stamped(self, file: str, stamp: float = 0.0):
         l = self.transcribe_to_text(file).split(" ")
         ret = []
         for n,w in enumerate(l):
-            ret.append([n*0.2, w])
+            ret.append([stamp+n*0.2, w])
         return ret
 
-    def transcribe_to_probstamped(self, file: str, stamp: int = 0.0):
+    def transcribe_to_probstamped(self, file: str, stamp: float = 0.0):
         l = self.transcribe_to_text(file).split(" ")
         ret = []
         for n,w in enumerate(l):
-            ret.append([n*0.2, {w: 1.0}])
+            ret.append([stamp+n*0.2, {w: 1.0}])
         return ret
 
 
