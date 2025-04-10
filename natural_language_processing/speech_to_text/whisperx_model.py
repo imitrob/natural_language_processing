@@ -98,11 +98,25 @@ class SpeechToTextModel():
         return timestamped_words
 
 def main():
+    import time
+    from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
+    rec = AudioRecorder()
+    rec.start_recording()
+    time.sleep(5)
+    file, stamp = rec.stop_recording()
+    
     stt = SpeechToTextModel()
-    output = stt("/home/doma/lfd_ws/output.wav")
-    print("1. ", output)
-    output = stt.transcribe_to_stamped(file = "/home/doma/lfd_ws/output.wav", timestamp = 1700000)
-    print("2. ", output)
+    t0 = time.time()
+    text = stt(file)
+    print(f"Run (1/3): {text} time: {time.time()-t0}")
+
+    t0 = time.time()
+    text = stt.transcribe_to_stamped(file)
+    print(f"Run (2/3): {text} time: {time.time()-t0}")
+
+    t0 = time.time()
+    text = stt.transcribe_to_probstamped(file)
+    print(f"Run (3/3): {text} time: {time.time()-t0}")
 
 if __name__ == "__main__":
     main()

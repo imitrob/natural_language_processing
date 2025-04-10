@@ -39,7 +39,7 @@ def discard_empty_words(output):
 
 
 def process_audio(processor, audio_path):
-    audio, sr = librosa.load(audio_path['file'], sr=16000)
+    audio, sr = librosa.load(audio_path, sr=16000)
     inputs = processor(audio, sampling_rate=sr, return_tensors="pt")
     return inputs.input_features
 
@@ -177,6 +177,18 @@ class SpeechToTextModel():
 
 
 if __name__ == "__main__":
+
+    import time
+    from natural_language_processing.speech_to_text.audio_recorder import AudioRecorder
+    rec = AudioRecorder()
+    rec.start_recording()
+    time.sleep(5)
+    file, stamp = rec.stop_recording()
+    
     pstt = SpeechToTextModel()
-    output = pstt.transcribe_to_probstamped(file = "/home/doma/lfd_ws/recording_174078312641.wav")
-    print(output)
+    t0 = time.time()
+    text = pstt.transcribe_to_probstamped(file)
+    print(f"Run (1/3): {text} time: {time.time()-t0}")
+
+    text = pstt.transcribe_to_probstamped(file)
+    print(f"Run (2/3): {text} time: {time.time()-t0}")
