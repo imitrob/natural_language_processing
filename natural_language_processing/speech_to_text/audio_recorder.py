@@ -1,6 +1,9 @@
 import time
+import wave
 from playsound import playsound
 import subprocess
+import audioop       # std-lib on Linux; part of CPython
+from pathlib import Path
 
 popelkapc_command = ["pasuspender", "--", "arecord", 
     f"-D", f"plughw:1,0",
@@ -17,7 +20,7 @@ thinkpad_command = [
     "arecord",
     "-f", "cd",
     "-t", "wav",
-    f"-D", f"plughw:1,0"
+    f"-D", f"plughw:3,0"
 ]
 
 class AudioRecorder():
@@ -42,11 +45,26 @@ class AudioRecorder():
             ])
         
     def stop_recording(self):
+        while (time.time() - self.start_time) < 1.0: # It should record at least for a second 
+            time.sleep(0.1)
         self.process.terminate()  # Send SIGTERM to arecord
         self.process.wait()  # Wait for process to exit
 
         self.is_recording = False
+        if not self.check_sound(self.output_file, SILENCE_RMS_THRESHOLD=100):
+            print("WARNING YOUR MIC MIGHT BE OFF!", flush=True)
         return self.output_file, self.start_time
+
+    @classmethod
+    def check_sound(cls, soundfile: str | Path, SILENCE_RMS_THRESHOLD: int) -> bool:
+        """Return overall RMS of a WAV file.
+        """
+        with wave.open(str(soundfile), "rb") as wf:
+            frames = wf.readframes(wf.getnframes())
+
+            RMS = audioop.rms(frames, wf.getsampwidth())
+            return bool(RMS > SILENCE_RMS_THRESHOLD)
+
 
 if __name__ == "__main__":
     rec = AudioRecorder()
