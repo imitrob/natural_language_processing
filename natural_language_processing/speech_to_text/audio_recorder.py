@@ -24,9 +24,10 @@ thinkpad_command = [
 ]
 
 class AudioRecorder():
-    def __init__(self):
+    def __init__(self, cmd=thinkpad_command):
         self.is_recording = False
         self.process = None
+        self.cmd = cmd
 
     def start_recording(self, 
                         output_file=f"recording_{int(time.time()*100)}.wav", 
@@ -39,7 +40,7 @@ class AudioRecorder():
 
         self.start_time = time.time()
         self.process = subprocess.Popen(
-            thinkpad_command + [
+            self.cmd + [
                 "-d", str(duration), # Maximum record duration
                 output_file,
             ])
@@ -51,8 +52,8 @@ class AudioRecorder():
         self.process.wait()  # Wait for process to exit
 
         self.is_recording = False
-        if not self.check_sound(self.output_file, SILENCE_RMS_THRESHOLD=100):
-            print("WARNING YOUR MIC MIGHT BE OFF!", flush=True)
+        # if not self.check_sound(self.output_file, SILENCE_RMS_THRESHOLD=100):
+        #     print("WARNING YOUR MIC MIGHT BE OFF!", flush=True)
         return self.output_file, self.start_time
 
     @classmethod
