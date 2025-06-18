@@ -7,14 +7,14 @@ from natural_language_processing.sentence_instruct_transformer.role_config.gestu
 
 
 class SentenceProcessor():
-    def __init__(self, model_name: str = "SultanR/SmolTulu-1.7b-Reinforced"):
+    def __init__(self, model_name: str = "SultanR/SmolTulu-1.7b-Instruct"):
         """Good models for instruct:
             model_name = Qwen/Qwen2.5-0.5B-Instruct (1GB VRAM)
-            model_name = SultanR/SmolTulu-1.7b-Reinforced (3.3GB VRAM)
+            model_name = SultanR/SmolTulu-1.7b-Instruct (3.3GB VRAM)
             deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 
         Args:
-            model_name (str, optional): _description_. Defaults to "SultanR/SmolTulu-1.7b-Reinforced".
+            model_name (str, optional): _description_. Defaults to "SultanR/SmolTulu-1.7b-Instruct".
         """
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
