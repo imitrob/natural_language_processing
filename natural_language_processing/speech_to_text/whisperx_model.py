@@ -22,6 +22,7 @@ class SpeechToTextModel():
         self.device = device
 
     def delete(self):
+        self.model.to("cpu")
         del self.model
 
     def callback(self, msg):

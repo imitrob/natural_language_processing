@@ -133,6 +133,7 @@ class SpeechToTextModel():
         self.model = WhisperForConditionalGeneration.from_pretrained(model_id).to(self.device)
 
     def delete(self):
+        self.model.to("cpu")
         del self.model
 
     def transcribe_to_probstamped(self, file: str, stamp: int = 0):
