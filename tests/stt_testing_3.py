@@ -8,7 +8,7 @@ import torch
 from nemo.collections.asr.models import EncDecRNNTBPEModel
 
 MODEL_NAME = "nvidia/stt_en_fastconformer_hybrid_large_pc"
-AUDIO_URL  = "https://datasets-server.huggingface.co/assets/voidful/librispeech_tts/--/default/test.clean/0/audio/audio.wav"
+AUDIO_URL  = "https://datasets-server.huggingface.co/assets/voidful/librispeech_tts/--/default/test.clean/0/audio/audio.wav" # some audio
 AUDIO_F    = pathlib.Path(__file__).parent / "audio.wav"
 
 # ----------------------------------------------------------------------

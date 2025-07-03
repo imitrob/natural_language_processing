@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-One-second microphone test
+"""One-second microphone test
 
 1. Records 1 s from the chosen mic.
 2. Saves it as test_chunk.wav (44.1 kHz, 16-bit PCM).
@@ -29,7 +28,7 @@ DEVICE      = "cuda"          # or "cpu"
 model = WhisperModel(MODEL_NAME, device=DEVICE, compute_type="float16")
 
 def record_one_second() -> np.ndarray:
-    print("🎤  Recording 1 s …")
+    print("Recording 1 s …")
     rec = sd.rec(int(SRC_SR * SECONDS),
                  samplerate=SRC_SR,
                  channels=1,
@@ -40,11 +39,10 @@ def record_one_second() -> np.ndarray:
 
 def save_wave(i16: np.ndarray):
     sf.write(WAV_PATH, i16, SRC_SR, subtype="PCM_16")
-    print(f"💾  Saved to {WAV_PATH}")
+    print(f"Saved to {WAV_PATH}")
 
 def play_wave():
-    print("🔈  Playing back …")
-    # playsound("/home/doma/lfd_ws/src/natural_language_processing/natural_language_processing/speech_to_text/audio.wav", block=True)
+    print("Playing back …")
     playsound(WAV_PATH, block=True)
 
 def resample_to_16k(i16: np.ndarray) -> np.ndarray:
