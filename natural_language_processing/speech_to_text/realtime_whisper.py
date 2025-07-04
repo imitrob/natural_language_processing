@@ -20,9 +20,10 @@ TAIL_IN      = int(SRC_SR * OVERLAP_SEC)  # tail to prepend
 print(f"Chunk in: {CHUNK_IN} samples, Tail in: {TAIL_IN} samples")
 print(SRC_SR, "Hz")
 
+MIC_DEVICE = 2
 info   = sd.query_devices()
 print(info)
-info   = sd.query_devices(7, "input")  # Jabra mic input ID
+info   = sd.query_devices(MIC_DEVICE, "input")  # Jabra mic input ID
 print(info)
 
 class RealtimeSpeechToTextModel():
@@ -56,7 +57,7 @@ class RealtimeSpeechToTextModel():
                                 dtype="int16",
                                 channels=1,
                                 callback=self.audio_cb,
-                                device=7):
+                                device=MIC_DEVICE):
                 print("Listening… Ctrl-C to stop")
                 worker = threading.Thread(target=self.recogniser, daemon=True)
                 worker.start()
@@ -107,15 +108,18 @@ class RealtimeSpeechToTextModel():
                     else: # dropped context, print full
                         new_part = seg.text
                     if new_part.strip():
-                        self.publish_text(printed)
+                        self.publish_text(new_part, printed)
                         printed += new_part
 
                 print(f"({len(buf)} left)", end="", flush=True)
                 buf = np.concatenate([window[-TAIL_IN:], buf])
                 print(f"({time.time() - start_time:.2f}s)")
 
-    def publish_text(self, text: str):
-        print("[["+text+"]]", end="", flush=True)
+    def publish_text(self, 
+                     new_text: str, # newly transcribed text
+                     all_text: str, # all text transcribed from the start
+                     ):
+        print("[["+new_text+"]]", end="", flush=True)
 
     def test_on_audio_file(self, filename: str = "audio.wav"):
         from scipy.io import wavfile
