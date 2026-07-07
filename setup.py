@@ -21,6 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             "nl_node = natural_language_processing.nl_node:main",
+            "stt_node = natural_language_processing.speech_to_text.stt_node:main",
+            "tts_node = natural_language_processing.text_to_speech.tts_node:main",
         ],
     },
 )
