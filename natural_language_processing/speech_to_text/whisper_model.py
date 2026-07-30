@@ -44,14 +44,16 @@ class SpeechToTextModel():
         return r
 
     def transcribe_to_stamped(self, file: str, stamp: float = 0.0):
-        l = self.transcribe_to_text(file).split(" ")
+        # split(), not split(" "): silence gives no words at all, and whisper
+        # prefixes every transcription with a space -> an empty first word.
+        l = self.transcribe_to_text(file).split()
         ret = []
         for n,w in enumerate(l):
             ret.append([stamp+n*0.2, w])
         return ret
 
     def transcribe_to_probstamped(self, file: str, stamp: float = 0.0):
-        l = self.transcribe_to_text(file).split(" ")
+        l = self.transcribe_to_text(file).split()
         ret = []
         for n,w in enumerate(l):
             ret.append([stamp+n*0.2, {w: 1.0}])

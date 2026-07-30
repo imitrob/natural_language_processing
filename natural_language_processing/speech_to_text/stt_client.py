@@ -34,8 +34,10 @@ class SpeechToTextClient():
 
     def transcribe_to_stamped(self, file: str, stamp: float = 0.0):
         """Transcribed words as [[stamp, word], ...] (same heuristic word
-        timing as the model's transcribe_to_stamped)."""
-        words = self(file).split(" ")
+        timing as the model's transcribe_to_stamped). Silence transcribes to
+        nothing, so this can be empty; split() (not split(" ")) also drops the
+        leading space whisper puts in front of every transcription."""
+        words = self(file).split()
         return [[stamp + n * 0.2, w] for n, w in enumerate(words)]
 
     def delete(self):

@@ -19,7 +19,11 @@ class SpeechToTextNode(Node):
 
     def transcribe_callback(self, request, response):
         print(f"Transcribing: {request.file}", flush=True)
-        response.text = self.model(request.file)
+        try:
+            response.text = self.model(request.file)
+        except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
+            print(f"Transcription failed ({e}), returning empty text", flush=True)
+            response.text = ""
         return response
 
 
