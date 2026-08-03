@@ -3,7 +3,7 @@ import sys, queue, threading, numpy as np, sounddevice as sd, scipy.signal
 import time
 from faster_whisper import WhisperModel
 import soundfile as sf
-from playsound import playsound  # pip install playsound==1.3.0
+from playsound import playsound  # pip install playsound==1.2.2 (1.3.0 sdist does not build)
 
 # MODEL        = "distil-large-v3"
 # MODEL        = "distil-medium.en"

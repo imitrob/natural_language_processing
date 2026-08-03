@@ -11,7 +11,7 @@ import sounddevice as sd
 import soundfile as sf
 import numpy as np
 import scipy.signal as sps
-from playsound import playsound          # pip install playsound==1.3.0
+from playsound import playsound          # pip install playsound==1.2.2 (1.3.0 sdist does not build)
 from faster_whisper import WhisperModel
 
 # ─────────────── CONFIG ──────────────────────────────────────────────
