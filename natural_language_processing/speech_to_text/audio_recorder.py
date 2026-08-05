@@ -20,7 +20,7 @@ thinkpad_command = [
     "arecord",
     "-f", "cd",
     "-t", "wav",
-    f"-D", f"plughw:3,0"
+    f"-D", f"plughw:2,0"
 ]
 
 class AudioRecorder():
@@ -54,6 +54,14 @@ class AudioRecorder():
         self.is_recording = False
         # if not self.check_sound(self.output_file, SILENCE_RMS_THRESHOLD=100):
         #     print("WARNING YOUR MIC MIGHT BE OFF!", flush=True)
+        if not Path(self.output_file).is_file():
+            # arecord wrote nothing: no microphone, or the wrong -D card. Callers
+            # treat None as "no recording"; announcing a file that does not exist
+            # only moves the failure into whoever opens it.
+            print(f"No recording made, `{' '.join(self.cmd)}` wrote no file. "
+                  f"Is a microphone connected? Check the `-D plughw:` card in "
+                  f"audio_recorder.py (`arecord -l` lists them).", flush=True)
+            return None, self.start_time
         return self.output_file, self.start_time
 
     @classmethod
@@ -68,6 +76,12 @@ class AudioRecorder():
 
 
 if __name__ == "__main__":
+    # No-microphone path: arecord fails, writes no file, stop_recording reports None.
+    rec = AudioRecorder(cmd=["arecord", "-D", "plughw:99,0", "-f", "cd", "-t", "wav"])
+    rec.start_recording(output_file="/tmp/_audio_recorder_selfcheck.wav")
+    assert rec.stop_recording()[0] is None
+    print("no-microphone check ok")
+
     rec = AudioRecorder()
     rec.start_recording()
     time.sleep(5)
