@@ -29,20 +29,26 @@ class AudioRecorder():
         self.process = None
         self.cmd = cmd
 
-    def start_recording(self, 
-                        output_file=f"recording_{int(time.time()*100)}.wav", 
-                        duration: int = 5, # maximum duration 
+    def start_recording(self,
+                        output_file=None,
+                        duration: int = 5, # maximum duration
                         ):
+        # The name is built per call, not as a default argument: a default is
+        # evaluated once at import, so every recording of a session reused one
+        # filename. Absolute, because the path travels to the speech-to-text
+        # server over ROS and that process has its own working directory.
+        if output_file is None:
+            output_file = f"recording_{time.time_ns()}.wav"
         self.is_recording = True
         self.duration = duration
-        self.output_file = output_file
+        self.output_file = str(Path(output_file).resolve())
 
 
         self.start_time = time.time()
         self.process = subprocess.Popen(
             self.cmd + [
                 "-d", str(duration), # Maximum record duration
-                output_file,
+                self.output_file,
             ])
         
     def stop_recording(self):

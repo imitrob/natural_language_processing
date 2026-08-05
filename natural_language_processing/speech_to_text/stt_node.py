@@ -1,6 +1,8 @@
 """Speech-to-text server node: loads the model once and serves transcription
 requests (see stt_client.py for the client side). Any model script with the
 __call__(file) -> text API can be served here (whisper_model.py by default)."""
+import os
+
 import rclpy
 from rclpy.node import Node
 
@@ -19,6 +21,14 @@ class SpeechToTextNode(Node):
 
     def transcribe_callback(self, request, response):
         print(f"Transcribing: {request.file}", flush=True)
+        # An unreadable file transcribes to "", which the caller cannot tell
+        # apart from silence -- so say which file, and that it is not silence.
+        if not os.path.isfile(request.file):
+            print(f"No such recording: {request.file} (the recorder and this "
+                  f"server must share a filesystem, and the path must be "
+                  f"absolute), returning empty text", flush=True)
+            response.text = ""
+            return response
         try:
             response.text = self.model(request.file)
         except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
