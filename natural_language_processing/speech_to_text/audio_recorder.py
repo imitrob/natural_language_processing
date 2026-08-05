@@ -1,3 +1,4 @@
+import os
 import time
 import wave
 from playsound import playsound
@@ -23,8 +24,19 @@ thinkpad_command = [
     f"-D", f"plughw:2,0"
 ]
 
+# ALSA card indices are assignment-order, so plughw:2,0 points at a different
+# card after a reboot or a replug. The card *id* is stable: `arecord -l` prints
+# it in brackets (Jabra Speak 710 -> J710). Override with AUDIO_DEVICE if the
+# machine has other hardware.
+jabra_command = [
+    "arecord",
+    "-D", os.environ.get("AUDIO_DEVICE", "plughw:CARD=J710,DEV=0"),
+    "-f", "cd",
+    "-t", "wav",
+]
+
 class AudioRecorder():
-    def __init__(self, cmd=thinkpad_command):
+    def __init__(self, cmd=jabra_command):
         self.is_recording = False
         self.process = None
         self.cmd = cmd
