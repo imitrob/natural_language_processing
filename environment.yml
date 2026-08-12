@@ -23,4 +23,5 @@ dependencies:
       - munch
       - py-espeak-ng
       - kokoro
+      - faster-whisper
       - ipython

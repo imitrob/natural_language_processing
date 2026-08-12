@@ -1,5 +1,6 @@
 
 import torch
+import numpy as np
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from datasets import load_dataset
 
@@ -43,6 +44,18 @@ class SpeechToTextModel():
         print("whisper out: ", r)
         return r
 
+    def transcribe_audio(self, audio, sample_rate: int = 16_000):
+        """Transcribe mono signed 16-bit PCM without writing a WAV file."""
+        samples = np.asarray(audio, dtype=np.int16)
+        if samples.size == 0:
+            return ""
+        result = self.pipe({
+            "raw": samples.astype(np.float32) / 32768.0,
+            "sampling_rate": int(sample_rate),
+        })["text"]
+        print("whisper out: ", result)
+        return result
+
     def transcribe_to_stamped(self, file: str, stamp: float = 0.0):
         # split(), not split(" "): silence gives no words at all, and whisper
         # prefixes every transcription with a space -> an empty first word.
@@ -81,6 +94,5 @@ if __name__ == "__main__":
     text = stt.transcribe_to_probstamped(file, stamp)
     print(f"Run (3/3): {text} time: {time.time()-t0}")
     
-
 
 

@@ -23,6 +23,19 @@ cd <your_ws>/src/natural_language_processing
 ros2 run natural_language_processing nl_node
 ```
 
+Always-listening wake interaction keeps audio in memory and publishes the
+command after hearing one utterance beginning with "hey robot":
+
+```
+ros2 run natural_language_processing stt_node --interaction auto --audio-device Jabra
+ros2 run multi_modal_reasoning multi_modal_reasoning --name_user demo --interaction auto
+```
+
+`--audio-device` accepts a PortAudio index or a name substring. It falls back
+to `AUDIO_DEVICE`, then the system default input. Wake phrase, VAD threshold,
+pre-roll, silence timeout, and duration limits are at the top of
+`speech_to_text/auto_stt.py`.
+
 ## FAQ:
 
 - If recording not working: Try to copy the alsa lib to the miniconda

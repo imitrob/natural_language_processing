@@ -1,13 +1,20 @@
-"""Speech-to-text server node: loads the model once and serves transcription
-requests (see stt_client.py for the client side). Any model script with the
-__call__(file) -> text API can be served here (whisper_model.py by default)."""
-import os
+"""Speech-to-text server node.
 
+Manual mode keeps the original file service. Auto mode additionally starts
+the microphone listener from auto_stt.py. Both modes expose the PCM service.
+"""
+import argparse
+import os
+import threading
+
+import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from hri_msgs.srv import Transcribe
+from hri_msgs.srv import Transcribe, TranscribeAudio
 from natural_language_processing.speech_to_text.stt_client import STT_SERVICE
+
+STT_AUDIO_SERVICE = "/speech_to_text/transcribe_audio"
 
 
 class SpeechToTextNode(Node):
@@ -17,7 +24,10 @@ class SpeechToTextNode(Node):
             from natural_language_processing.speech_to_text.whisper_model import SpeechToTextModel
             model = SpeechToTextModel(device="cuda")
         self.model = model  # any object with __call__(file) -> text
+        self._model_lock = threading.Lock()
         self.create_service(Transcribe, STT_SERVICE, self.transcribe_callback)
+        self.create_service(TranscribeAudio, STT_AUDIO_SERVICE,
+                            self.transcribe_audio_callback)
 
     def transcribe_callback(self, request, response):
         print(f"Transcribing: {request.file}", flush=True)
@@ -30,18 +40,54 @@ class SpeechToTextNode(Node):
             response.text = ""
             return response
         try:
-            response.text = self.model(request.file)
+            with self._model_lock:
+                response.text = self.model(request.file)
         except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
             print(f"Transcription failed ({e}), returning empty text", flush=True)
             response.text = ""
         return response
 
+    def transcribe_audio(self, audio, sample_rate):
+        with self._model_lock:
+            return self.model.transcribe_audio(audio, sample_rate)
 
-def main():
+    def transcribe_audio_callback(self, request, response):
+        try:
+            response.text = self.transcribe_audio(
+                np.asarray(request.audio, dtype=np.int16), request.sample_rate)
+        except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
+            print(f"PCM transcription failed ({e}), returning empty text", flush=True)
+            response.text = ""
+        return response
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Speech-to-text server")
+    parser.add_argument("--interaction", choices=("manual", "auto"), default="manual")
+    parser.add_argument("--audio-device", help="PortAudio input index or device-name substring")
+    args, _ = parser.parse_known_args(argv)
+
     rclpy.init()
-    node = SpeechToTextNode()
-    print(f"Speech-to-text service ready on {STT_SERVICE}", flush=True)
-    rclpy.spin(node)
+    node = None
+    try:
+        if args.interaction == "auto":
+            from natural_language_processing.speech_to_text.auto_stt import AutoSpeechToTextNode
+            node = AutoSpeechToTextNode(audio_device=args.audio_device)
+            node.start_listening()
+        else:
+            node = SpeechToTextNode()
+        print(f"Speech-to-text services ready on {STT_SERVICE} and {STT_AUDIO_SERVICE}",
+              flush=True)
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if args.interaction == "auto" and node is not None:
+            node.stop_listening()
+        if node is not None:
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
