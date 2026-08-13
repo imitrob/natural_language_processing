@@ -25,6 +25,7 @@ class SpeechToTextModel():
             feature_extractor=processor.feature_extractor,
             torch_dtype=torch_dtype,
             device=device,
+            generate_kwargs={"language": "en"},
         )
 
     def delete(self):
