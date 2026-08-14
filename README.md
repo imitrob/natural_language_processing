@@ -27,12 +27,14 @@ Always-listening wake interaction keeps audio in memory and publishes the
 command after hearing one utterance beginning with "hey robot":
 
 ```
-ros2 run natural_language_processing stt_node --interaction auto --audio-device Jabra
-ros2 run multi_modal_reasoning multi_modal_reasoning --name_user demo --interaction auto
+ros2 run natural_language_processing stt_node
+ros2 run multi_modal_reasoning multi_modal_reasoning --name_user demo
 ```
 
-`--audio-device` accepts a PortAudio index or a name substring. It falls back
-to `AUDIO_DEVICE`, then the system default input. Wake phrase, VAD threshold,
+Both default to `--interaction auto`; pass `--interaction manual` for the
+Enter-controlled recording. `--audio-device` accepts a PortAudio index or a
+name substring, and falls back to `AUDIO_DEVICE`, then to `Jabra`, then to the
+system default input. Wake phrase, VAD threshold,
 pre-roll, silence timeout, and duration limits are at the top of
 `speech_to_text/auto_stt.py`.
 

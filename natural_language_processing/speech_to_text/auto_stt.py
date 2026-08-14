@@ -24,6 +24,7 @@ MIN_SPEECH_SECONDS = 0.25
 MAX_UTTERANCE_SECONDS = 15.0
 VAD_THRESHOLD = 0.5
 WHISPER_TOPIC = "/nlp/whisper"
+DEFAULT_AUDIO_DEVICE = "Jabra"  # the cell's headset
 
 
 def wake_command(text, wake_phrase=WAKE_PHRASE):
@@ -104,9 +105,18 @@ class UtteranceSegmenter:
 
 
 def resolve_audio_device(requested):
-    requested = requested or os.environ.get("AUDIO_DEVICE")
-    if requested is None:
+    """An asked-for device must match; the default headset falls back."""
+    explicit = requested or os.environ.get("AUDIO_DEVICE")
+    try:
+        return _match_audio_device(explicit or DEFAULT_AUDIO_DEVICE)
+    except ValueError:
+        if explicit:
+            raise
+        print(f"No {DEFAULT_AUDIO_DEVICE!r} input, using the system default", flush=True)
         return None, sd.query_devices(kind="input")
+
+
+def _match_audio_device(requested):
     try:
         device = int(requested)
     except ValueError:

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from natural_language_processing.speech_to_text import auto_stt
 from natural_language_processing.speech_to_text.auto_stt import (
     AutoSpeechToTextNode,
     UtteranceSegmenter,
@@ -82,3 +83,29 @@ def test_auto_worker_publishes_wake_command_without_a_file():
     assert published[0].all_text == "stop"
     assert published[0].header.stamp.sec == 12
     assert published[0].header.stamp.nanosec == 500_000_000
+
+
+def _devices(*names):
+    return [{"name": name, "max_input_channels": 1} for name in names]
+
+
+def test_default_picks_the_headset(monkeypatch):
+    monkeypatch.delenv("AUDIO_DEVICE", raising=False)
+    monkeypatch.setattr(auto_stt.sd, "query_devices", lambda *a, **k: _devices("built-in", "Jabra Speak 710"))
+
+    assert auto_stt.resolve_audio_device(None)[0] == 1
+
+
+def test_default_falls_back_when_the_headset_is_absent(monkeypatch):
+    monkeypatch.delenv("AUDIO_DEVICE", raising=False)
+    monkeypatch.setattr(auto_stt.sd, "query_devices",
+                        lambda *a, **k: _devices("built-in") if not k else {"name": "built-in"})
+
+    assert auto_stt.resolve_audio_device(None) == (None, {"name": "built-in"})
+
+
+def test_an_asked_for_device_must_exist(monkeypatch):
+    monkeypatch.setattr(auto_stt.sd, "query_devices", lambda *a, **k: _devices("built-in"))
+
+    with pytest.raises(ValueError):
+        auto_stt.resolve_audio_device("Shure")

@@ -63,7 +63,7 @@ class SpeechToTextNode(Node):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Speech-to-text server")
-    parser.add_argument("--interaction", choices=("manual", "auto"), default="manual")
+    parser.add_argument("--interaction", choices=("manual", "auto"), default="auto")
     parser.add_argument("--audio-device", help="PortAudio input index or device-name substring")
     args, _ = parser.parse_known_args(argv)
 
