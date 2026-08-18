@@ -90,6 +90,7 @@ def make_hardly_filtered_sound(
             struct.pack("<%dh" % n_frames, *wav_frames)
         )
 
+@pytest.mark.hri
 @pytest.mark.timeout(30)        # cancel the test if it hangs >30 s
 def test_speaker_microphone_loopback(tmp_path: Path) -> None:
     """

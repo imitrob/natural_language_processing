@@ -1,7 +1,8 @@
 """Speech-to-text server node.
 
 Manual mode keeps the original file service. Auto mode additionally starts
-the microphone listener from auto_stt.py. Both modes expose the PCM service.
+the microphone listener from wake_word_listener.py. Both modes expose the
+PCM service.
 """
 import argparse
 import os
@@ -71,7 +72,7 @@ def main(argv=None):
     node = None
     try:
         if args.interaction == "auto":
-            from natural_language_processing.speech_to_text.auto_stt import AutoSpeechToTextNode
+            from natural_language_processing.speech_to_text.wake_word_listener import AutoSpeechToTextNode
             node = AutoSpeechToTextNode(audio_device=args.audio_device)
             node.start_listening()
         else:

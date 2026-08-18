@@ -36,7 +36,7 @@ Enter-controlled recording. `--audio-device` accepts a PortAudio index or a
 name substring, and falls back to `AUDIO_DEVICE`, then to `Jabra`, then to the
 system default input. Wake phrase, VAD threshold,
 pre-roll, silence timeout, and duration limits are at the top of
-`speech_to_text/auto_stt.py`.
+`speech_to_text/wake_word_listener.py`.
 
 ## FAQ:
 

@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from natural_language_processing.speech_to_text import auto_stt
-from natural_language_processing.speech_to_text.auto_stt import (
+from natural_language_processing.speech_to_text import wake_word_listener
+from natural_language_processing.speech_to_text.wake_word_listener import (
     AutoSpeechToTextNode,
     UtteranceSegmenter,
     wake_command,
@@ -21,9 +21,9 @@ def test_wake_command_is_case_and_punctuation_tolerant():
 
 
 def test_segmenter_keeps_preroll_and_ends_after_silence(monkeypatch):
-    monkeypatch.setattr("natural_language_processing.speech_to_text.auto_stt.PRE_ROLL_SECONDS", 0.3)
-    monkeypatch.setattr("natural_language_processing.speech_to_text.auto_stt.END_SILENCE_SECONDS", 0.7)
-    monkeypatch.setattr("natural_language_processing.speech_to_text.auto_stt.MIN_SPEECH_SECONDS", 0.25)
+    monkeypatch.setattr("natural_language_processing.speech_to_text.wake_word_listener.PRE_ROLL_SECONDS", 0.3)
+    monkeypatch.setattr("natural_language_processing.speech_to_text.wake_word_listener.END_SILENCE_SECONDS", 0.7)
+    monkeypatch.setattr("natural_language_processing.speech_to_text.wake_word_listener.MIN_SPEECH_SECONDS", 0.25)
     segmenter = UtteranceSegmenter(sample_rate=1_000)
     silence = np.zeros(100, dtype=np.int16)
     speech = np.ones(100, dtype=np.int16)
@@ -91,21 +91,21 @@ def _devices(*names):
 
 def test_default_picks_the_headset(monkeypatch):
     monkeypatch.delenv("AUDIO_DEVICE", raising=False)
-    monkeypatch.setattr(auto_stt.sd, "query_devices", lambda *a, **k: _devices("built-in", "Jabra Speak 710"))
+    monkeypatch.setattr(wake_word_listener.sd, "query_devices", lambda *a, **k: _devices("built-in", "Jabra Speak 710"))
 
-    assert auto_stt.resolve_audio_device(None)[0] == 1
+    assert wake_word_listener.resolve_audio_device(None)[0] == 1
 
 
 def test_default_falls_back_when_the_headset_is_absent(monkeypatch):
     monkeypatch.delenv("AUDIO_DEVICE", raising=False)
-    monkeypatch.setattr(auto_stt.sd, "query_devices",
+    monkeypatch.setattr(wake_word_listener.sd, "query_devices",
                         lambda *a, **k: _devices("built-in") if not k else {"name": "built-in"})
 
-    assert auto_stt.resolve_audio_device(None) == (None, {"name": "built-in"})
+    assert wake_word_listener.resolve_audio_device(None) == (None, {"name": "built-in"})
 
 
 def test_an_asked_for_device_must_exist(monkeypatch):
-    monkeypatch.setattr(auto_stt.sd, "query_devices", lambda *a, **k: _devices("built-in"))
+    monkeypatch.setattr(wake_word_listener.sd, "query_devices", lambda *a, **k: _devices("built-in"))
 
     with pytest.raises(ValueError):
-        auto_stt.resolve_audio_device("Shure")
+        wake_word_listener.resolve_audio_device("Shure")
