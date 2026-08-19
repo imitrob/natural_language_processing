@@ -1,4 +1,5 @@
 """Always-listening, wake-qualified speech input for the STT server."""
+import json
 import math
 import os
 import queue
@@ -27,13 +28,15 @@ WHISPER_TOPIC = "/nlp/whisper"
 DEFAULT_AUDIO_DEVICE = "Jabra"  # the cell's headset
 
 
-def wake_command(text, wake_phrase=WAKE_PHRASE):
-    """Return normalized command words only when text starts with the wake phrase."""
-    words = re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", text.lower())
+def wake_command_words(words, wake_phrase=WAKE_PHRASE):
+    """The word entries after the wake phrase, or None if it was not said.
+
+    Slicing the words rather than the text is what keeps words_json aligned
+    with all_text: both are built from what is left here."""
     wake_words = re.findall(r"[a-z0-9]+", wake_phrase.lower())
-    if words[:len(wake_words)] != wake_words:
+    if [word["word"] for word in words[:len(wake_words)]] != wake_words:
         return None
-    return " ".join(words[len(wake_words):])
+    return words[len(wake_words):]
 
 
 class UtteranceSegmenter:
@@ -212,21 +215,24 @@ class AutoSpeechToTextNode(SpeechToTextNode):
                 return
             audio, onset = item
             try:
-                transcript = self.transcribe_audio(audio, SAMPLE_RATE).strip()
+                words = self.transcribe_audio_words(audio, SAMPLE_RATE, stamp=onset)
             except Exception as error:  # one bad utterance must not stop listening
                 print(f"Transcription failed: {error}", flush=True)
                 continue
             if self._stop.is_set():
                 return
-            command = wake_command(transcript)
-            if command is None:
+            command_words = wake_command_words(words)
+            if command_words is None:
+                transcript = " ".join(word["word"] for word in words)
                 print(f"Ignored (missing {WAKE_PHRASE!r}): {transcript}", flush=True)
                 continue
-            if not command:
+            if not command_words:
                 print("Wake phrase heard without a command", flush=True)
                 continue
+            command = " ".join(word["word"] for word in command_words)
             print(f"Accepted: {command}", flush=True)
-            message = WhisperText(new_text=command, all_text=command)
+            message = WhisperText(new_text=command, all_text=command,
+                                  words_json=json.dumps(command_words))
             seconds = math.floor(onset)
             message.header.stamp.sec = seconds
             message.header.stamp.nanosec = int((onset - seconds) * 1_000_000_000)

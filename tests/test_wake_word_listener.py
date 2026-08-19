@@ -1,3 +1,4 @@
+import json
 import queue
 import threading
 from types import SimpleNamespace
@@ -9,15 +10,22 @@ from natural_language_processing.speech_to_text import wake_word_listener
 from natural_language_processing.speech_to_text.wake_word_listener import (
     AutoSpeechToTextNode,
     UtteranceSegmenter,
-    wake_command,
+    wake_command_words,
 )
 from natural_language_processing.speech_to_text.stt_node import SpeechToTextNode
 
 
-def test_wake_command_is_case_and_punctuation_tolerant():
-    assert wake_command("Hey, Robot! Pick up the cup.") == "pick up the cup"
-    assert wake_command("robot, pick up the cup") is None
-    assert wake_command("They robotically move") is None
+def _words(*spoken):
+    """Word entries as whisper_model.normalize_word already leaves them."""
+    return [{"start": i / 10, "end": i / 10, "word": w, "alts": {}}
+            for i, w in enumerate(spoken)]
+
+
+def test_wake_phrase_must_be_the_first_words_spoken():
+    assert [w["word"] for w in wake_command_words(_words("hey", "robot", "pick", "up"))] \
+        == ["pick", "up"]
+    assert wake_command_words(_words("robot", "pick", "up")) is None
+    assert wake_command_words(_words("they", "robotically", "move")) is None
 
 
 def test_segmenter_keeps_preroll_and_ends_after_silence(monkeypatch):
@@ -46,43 +54,24 @@ def test_segmenter_keeps_preroll_and_ends_after_silence(monkeypatch):
 
 def test_pcm_service_passes_samples_without_a_file():
     captured = {}
-    node = SimpleNamespace()
 
-    def transcribe(audio, sample_rate):
-        captured["audio"] = audio
-        captured["sample_rate"] = sample_rate
-        return "pick the cup"
+    def transcribe(audio, sample_rate, stamp=0.0):
+        captured["audio"], captured["sample_rate"] = audio, sample_rate
+        return [{"start": 1.0, "end": 1.2, "word": "pick", "alts": {"pick": 0.8}}]
 
-    node.transcribe_audio = transcribe
-    request = SimpleNamespace(audio=[-32768, 0, 32767], sample_rate=16_000)
-    response = SimpleNamespace(text="")
+    node = SimpleNamespace(transcribe_audio_words=transcribe)
+    request = SimpleNamespace(audio=[-32768, 0, 32767], sample_rate=16_000, stamp=0.0)
+    response = SimpleNamespace(text="", words_json="")
 
     SpeechToTextNode.transcribe_audio_callback(node, request, response)
 
-    assert response.text == "pick the cup"
+    assert response.text == "pick"
+    assert json.loads(response.words_json)[0]["alts"] == {"pick": 0.8}
     assert captured["audio"].dtype == np.int16
     assert captured["audio"].tolist() == request.audio
     assert captured["sample_rate"] == 16_000
 
 
-def test_auto_worker_publishes_wake_command_without_a_file():
-    published = []
-    utterances = queue.Queue()
-    utterances.put((np.zeros(16_000, dtype=np.int16), 12.5))
-    utterances.put(None)
-    node = SimpleNamespace(
-        _stop=threading.Event(),
-        _utterance_queue=utterances,
-        transcribe_audio=lambda _audio, _rate: "Hey, Robot! Stop.",
-        publisher=SimpleNamespace(publish=published.append),
-    )
-
-    AutoSpeechToTextNode._transcribe_utterances(node)
-
-    assert len(published) == 1
-    assert published[0].all_text == "stop"
-    assert published[0].header.stamp.sec == 12
-    assert published[0].header.stamp.nanosec == 500_000_000
 
 
 def _devices(*names):
@@ -109,3 +98,59 @@ def test_an_asked_for_device_must_exist(monkeypatch):
 
     with pytest.raises(ValueError):
         wake_word_listener.resolve_audio_device("Shure")
+
+
+def test_wake_words_are_sliced_off_the_word_stream():
+    """words_json must stay index-aligned with all_text, so both are built
+    from the same sliced list."""
+    words = [{"start": 1.0, "end": 1.1, "word": "hey", "alts": {"hey": 0.9}},
+             {"start": 1.2, "end": 1.3, "word": "robot", "alts": {"robot": 0.9}},
+             {"start": 1.5, "end": 1.7, "word": "pick", "alts": {"pick": 0.5, "push": 0.2}}]
+    command = wake_command_words(words)
+
+    assert [w["word"] for w in command] == ["pick"]
+    assert command[0]["start"] == 1.5
+    assert command[0]["alts"] == {"pick": 0.5, "push": 0.2}
+    assert wake_command_words(words[2:]) is None  # no wake phrase
+
+
+def test_auto_worker_publishes_real_stamps_and_alternatives():
+    published = []
+    utterances = queue.Queue()
+    utterances.put((np.zeros(16_000, dtype=np.int16), 12.5))
+    utterances.put(None)
+
+    def transcribe_audio_words(_audio, _rate, stamp=0.0):
+        return [{"start": stamp, "end": stamp + 0.1, "word": "hey", "alts": {"hey": 0.9}},
+                {"start": stamp + 0.2, "end": stamp + 0.3, "word": "robot", "alts": {}},
+                {"start": stamp + 0.9, "end": stamp + 1.2, "word": "stop",
+                 "alts": {"stop": 0.61, "stomp": 0.04}}]
+
+    node = SimpleNamespace(
+        _stop=threading.Event(),
+        _utterance_queue=utterances,
+        transcribe_audio_words=transcribe_audio_words,
+        publisher=SimpleNamespace(publish=published.append),
+    )
+
+    AutoSpeechToTextNode._transcribe_utterances(node)
+
+    assert len(published) == 1
+    assert published[0].all_text == "stop"
+    words = json.loads(published[0].words_json)
+    assert [w["word"] for w in words] == published[0].all_text.split()
+    # Absolute: the utterance began at 12.5 and "stop" 0.9 s into it.
+    assert words[0]["start"] == pytest.approx(13.4)
+    assert words[0]["alts"] == {"stop": 0.61, "stomp": 0.04}
+
+
+
+
+def test_text_and_words_are_built_from_the_same_stream():
+    from natural_language_processing.speech_to_text.stt_node import fill_response
+
+    response = SimpleNamespace(text="", words_json="")
+    fill_response(response, [{"start": 1.0, "end": 1.2, "word": "pick", "alts": {"pick": 0.8}},
+                             {"start": 1.4, "end": 1.6, "word": "cup", "alts": {}}])
+    assert response.text == "pick cup"
+    assert [w["word"] for w in json.loads(response.words_json)] == response.text.split()

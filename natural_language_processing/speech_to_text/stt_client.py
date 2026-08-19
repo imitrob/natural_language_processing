@@ -4,6 +4,8 @@ API: __call__(file) -> transcribed text.
 
 The client owns a private node + executor, so calling it from inside another
 node's callback (e.g. HRI's single-threaded executor) cannot deadlock."""
+import json
+
 import numpy as np
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
@@ -11,6 +13,11 @@ from rclpy.executors import SingleThreadedExecutor
 from hri_msgs.srv import Transcribe
 
 STT_SERVICE = "/speech_to_text/transcribe"
+
+
+def parse_words(words_json: str):
+    """words_json as word entries. Empty when the server sent none."""
+    return json.loads(words_json) if words_json else []
 
 
 class SpeechToTextClient():
@@ -21,24 +28,25 @@ class SpeechToTextClient():
         self._executor.add_node(self._node)
         self._client = self._node.create_client(Transcribe, STT_SERVICE)
 
-    def __call__(self, file: str = "") -> str:
+    def _call(self, file: str, stamp: float = 0.0):
         if not self._client.wait_for_service(timeout_sec=5.0):
             raise RuntimeError(f"Speech-to-text service {STT_SERVICE} unavailable. "
                                f"Run: ros2 run natural_language_processing stt_node")
-        future = self._client.call_async(Transcribe.Request(file=file))
+        future = self._client.call_async(Transcribe.Request(file=file, stamp=stamp))
         rclpy.spin_until_future_complete(self._node, future, executor=self._executor,
                                          timeout_sec=self.timeout_sec)
         if not future.done():
             raise RuntimeError(f"Speech-to-text did not respond within {self.timeout_sec}s")
-        return future.result().text
+        return future.result()
 
-    def transcribe_to_stamped(self, file: str, stamp: float = 0.0):
-        """Transcribed words as [[stamp, word], ...] (same heuristic word
-        timing as the model's transcribe_to_stamped). Silence transcribes to
-        nothing, so this can be empty; split() (not split(" ")) also drops the
-        leading space whisper puts in front of every transcription."""
-        words = self(file).split()
-        return [[stamp + n * 0.2, w] for n, w in enumerate(words)]
+    def __call__(self, file: str = "") -> str:
+        return self._call(file).text
+
+    def transcribe_to_words(self, file: str, stamp: float = 0.0):
+        """Word entries [{start, end, word, alts}, ...] with times on the same
+        wall clock the recording started on, so they compare directly with
+        gesture stamps. Empty for silence."""
+        return parse_words(self._call(file, stamp).words_json)
 
     def delete(self):
         self._node.destroy_node()
