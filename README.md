@@ -1,13 +1,18 @@
 
 # Natural language processing
 
-Package requires hri_msgs, right now part of modality_merging package.
+Package requires [hri_msgs](https://github.com/imitrob/franka_hri/tree/main/hri_msgs).
 
-Press enter to start voice record, when button is released, the record is processed:
-1. Speech to text node (*speech_to_text* folder)
-2. Text to command (*sentence_instruct_transformer* folder)
+This package include a personalized way of how I use 1. speech-to-text, 2. text-to-speech, and 3. legacy NL processing.
 
-See `nl_node.py` for more details.
+1. Speech to text `ros2 run natural_langauge_processing stt_node` where it's automatic mode detects passphrase "hey robot" and the following command:
+2. Text-to-speech `ros2 run natural_langauge_processing tts_node` uses Kokoro 82M model.
+3. Natural language processing setup from 2023 that is no longer used, but kept as a reference, for NL setup, see [franka_hri](https://github.com/imitrob/franka_hri/tree/main).
+
+
+Speech-to-text visualizer: `ros2 run natural_language_processing stt_visualizer`
+<img src="./speechtotext.gif" alt="Speech to text" />
+
 
 ## Install
 
@@ -55,6 +60,23 @@ is that method's declared `ADAPTER_LEVEL`: A0 takes the winning word via
 to `AUDIO_DEVICE`, then to `Jabra`, then to the system default input. Wake
 phrase, VAD threshold, pre-roll, silence timeout, and duration limits are at the
 top of `speech_to_text/wake_word_listener.py`.
+
+### Speech alternatives visualizer
+
+Run the standalone browser view alongside auto-mode `stt_node`:
+
+```
+ros2 run natural_language_processing stt_visualizer
+```
+
+Then open <http://localhost:8765>. The winning sentence stays on the center
+line. For each word, Whisper's alternatives alternate above and below it and
+fade with their raw likelihood. The page reconnects automatically and needs no
+rosbridge or third-party JavaScript.
+
+The server binds to localhost by default. Use `--host 0.0.0.0` to view it from
+another machine, `--port` to choose another port, or `--topic` to subscribe to
+a different `hri_msgs/WhisperText` topic.
 
 ## FAQ:
 

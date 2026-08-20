@@ -126,15 +126,20 @@ def test_auto_worker_publishes_real_stamps_and_alternatives():
                 {"start": stamp + 0.9, "end": stamp + 1.2, "word": "stop",
                  "alts": {"stop": 0.61, "stomp": 0.04}}]
 
+    active = []
     node = SimpleNamespace(
         _stop=threading.Event(),
         _utterance_queue=utterances,
         transcribe_audio_words=transcribe_audio_words,
         publisher=SimpleNamespace(publish=published.append),
+        speech_active_publisher=SimpleNamespace(
+            publish=lambda message: active.append(message.data)),
     )
 
     AutoSpeechToTextNode._transcribe_utterances(node)
 
+    # Every utterance ends by clearing speech-active, accepted or not.
+    assert active == [False]
     assert len(published) == 1
     assert published[0].all_text == "stop"
     words = json.loads(published[0].words_json)
@@ -145,6 +150,58 @@ def test_auto_worker_publishes_real_stamps_and_alternatives():
 
 
 
+
+def test_speech_too_short_to_transcribe_clears_speech_active():
+    """A noise burst under MIN_SPEECH_SECONDS never reaches the transcriber, so
+    the segmenter itself has to say the microphone went idle again."""
+    from natural_language_processing.speech_to_text.wake_word_listener import (
+        BLOCK_SAMPLES, END_SILENCE_SECONDS, SAMPLE_RATE)
+
+    block_seconds = BLOCK_SAMPLES / SAMPLE_RATE
+    flags = iter([True] + [False] * (int(END_SILENCE_SECONDS / block_seconds) + 2))
+    audio = queue.Queue()
+    for index in range(int(END_SILENCE_SECONDS / block_seconds) + 3):
+        audio.put((np.zeros(BLOCK_SAMPLES, dtype=np.int16), index * block_seconds))
+    audio.put(None)
+
+    active = []
+    utterances = queue.Queue()
+    node = SimpleNamespace(
+        _stop=threading.Event(),
+        _audio_queue=audio,
+        _utterance_queue=utterances,
+        _is_speech=lambda _block: next(flags),
+        speech_active_publisher=SimpleNamespace(
+            publish=lambda message: active.append(message.data)),
+    )
+
+    AutoSpeechToTextNode._segment_audio(node)
+
+    assert utterances.qsize() == 0  # nothing to transcribe
+    assert active == [True, False]  # ...so the animation still stops
+
+def test_ignored_utterance_still_clears_speech_active():
+    """Without the wake phrase nothing is published, but the page must stop
+    showing the listening animation."""
+    published, active = [], []
+    utterances = queue.Queue()
+    utterances.put((np.zeros(16_000, dtype=np.int16), 3.0))
+    utterances.put(None)
+
+    node = SimpleNamespace(
+        _stop=threading.Event(),
+        _utterance_queue=utterances,
+        transcribe_audio_words=lambda _audio, _rate, stamp=0.0: [
+            {"start": stamp, "end": stamp + 0.2, "word": "stop", "alts": {}}],
+        publisher=SimpleNamespace(publish=published.append),
+        speech_active_publisher=SimpleNamespace(
+            publish=lambda message: active.append(message.data)),
+    )
+
+    AutoSpeechToTextNode._transcribe_utterances(node)
+
+    assert published == []
+    assert active == [False]
 
 def test_text_and_words_are_built_from_the_same_stream():
     from natural_language_processing.speech_to_text.stt_node import fill_response

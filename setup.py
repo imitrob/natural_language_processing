@@ -10,6 +10,7 @@ setup(
     data_files=[
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.py')),
+        ('share/' + package_name + '/web', ['resource/stt_visualizer.html']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -22,6 +23,7 @@ setup(
         'console_scripts': [
             "nl_node = natural_language_processing.nl_node:main",
             "stt_node = natural_language_processing.speech_to_text.stt_node:main",
+            "stt_visualizer = natural_language_processing.stt_visualizer:main",
             "tts_node = natural_language_processing.text_to_speech.tts_node:main",
         ],
     },

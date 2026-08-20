@@ -92,6 +92,10 @@ class SpeechToTextModel():
             audio = resample_poly(audio, 16_000, sample_rate)
         return audio.astype(np.float32)
 
+    # generate() is internally no-grad, but the alternatives pass calls the
+    # model directly -- without this the encoder graph (32 layers x 1500 frames
+    # of attention activations) is retained for the whole call: ~6 GB of VRAM.
+    @torch.inference_mode()
     def _generate(self, audio, sample_rate: int = 16_000, alternatives: bool = False):
         """Transcribe float32 mono audio to a list of word dicts.
 
@@ -221,4 +225,18 @@ if __name__ == "__main__":
     assert abs(sum(merge_alternatives([(" pick", 0.35), (" push", 0.10)]).values()) - 0.45) < 1e-9
     assert stamp_words([{"start": 0.4, "end": 0.6, "word": "pick"}], 100.0) == \
         [{"start": 100.4, "end": 100.6, "word": "pick"}]
+    # The VRAM fix is autograd being off inside _generate. A stub `self` proves
+    # the decorator is still there without loading 1.6 GB of weights.
+    class _Stop(Exception):
+        pass
+
+    class _ModeProbe:
+        @property
+        def processor(self):
+            raise _Stop(torch.is_inference_mode_enabled())
+
+    try:
+        SpeechToTextModel._generate(_ModeProbe(), np.zeros(16, dtype=np.float32))
+    except _Stop as stop:
+        assert stop.args[0], "_generate lost @torch.inference_mode(): VRAM will blow up"
     print("whisper_model post-processing checks ok")

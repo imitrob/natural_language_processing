@@ -61,7 +61,11 @@ class AudioRecorder():
             self.cmd + [
                 "-d", str(duration), # Maximum record duration
                 self.output_file,
-            ])
+            ],
+            # arecord would otherwise inherit this terminal's stdin and consume
+            # it, so the caller's next input() raises EOFError -- which is what
+            # the Enter-controlled record_voice() does right after this call.
+            stdin=subprocess.DEVNULL)
         
     def stop_recording(self):
         while (time.time() - self.start_time) < 1.0: # It should record at least for a second 

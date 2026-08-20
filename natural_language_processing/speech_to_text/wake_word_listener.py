@@ -13,6 +13,7 @@ import sounddevice as sd
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 
 from hri_msgs.msg import WhisperText
+from std_msgs.msg import Bool
 from natural_language_processing.speech_to_text.stt_node import SpeechToTextNode
 
 # Tune these for the microphone and room.
@@ -25,6 +26,7 @@ MIN_SPEECH_SECONDS = 0.25
 MAX_UTTERANCE_SECONDS = 15.0
 VAD_THRESHOLD = 0.5
 WHISPER_TOPIC = "/nlp/whisper"
+SPEECH_ACTIVE_TOPIC = "/nlp/speech_active"
 DEFAULT_AUDIO_DEVICE = "Jabra"  # the cell's headset
 
 
@@ -140,6 +142,8 @@ class AutoSpeechToTextNode(SpeechToTextNode):
         self.audio_device, self.audio_device_info = resolve_audio_device(audio_device)
         super().__init__(model=model)
         self.publisher = self.create_publisher(WhisperText, WHISPER_TOPIC, 10)
+        self.speech_active_publisher = self.create_publisher(
+            Bool, SPEECH_ACTIVE_TOPIC, 10)
         self._audio_queue = queue.Queue()
         self._utterance_queue = queue.Queue()
         self._stop = threading.Event()
@@ -205,8 +209,14 @@ class AutoSpeechToTextNode(SpeechToTextNode):
                 block, self._is_speech(block), captured_at)
             if started:
                 print("Speech detected, listening...", flush=True)
+                self.speech_active_publisher.publish(Bool(data=True))
             if utterance is not None:
                 self._utterance_queue.put((utterance, onset))
+            elif onset is not None and not started:
+                # Ended too short to transcribe, so nothing downstream will
+                # ever say the microphone went idle again.  (An onset block
+                # also carries an onset, hence `not started`.)
+                self.speech_active_publisher.publish(Bool(data=False))
 
     def _transcribe_utterances(self):
         while not self._stop.is_set():
@@ -214,26 +224,31 @@ class AutoSpeechToTextNode(SpeechToTextNode):
             if item is None:
                 return
             audio, onset = item
+            # The finally clause is what tells listeners the utterance is over
+            # whether it was accepted, ignored or failed.
             try:
-                words = self.transcribe_audio_words(audio, SAMPLE_RATE, stamp=onset)
-            except Exception as error:  # one bad utterance must not stop listening
-                print(f"Transcription failed: {error}", flush=True)
-                continue
-            if self._stop.is_set():
-                return
-            command_words = wake_command_words(words)
-            if command_words is None:
-                transcript = " ".join(word["word"] for word in words)
-                print(f"Ignored (missing {WAKE_PHRASE!r}): {transcript}", flush=True)
-                continue
-            if not command_words:
-                print("Wake phrase heard without a command", flush=True)
-                continue
-            command = " ".join(word["word"] for word in command_words)
-            print(f"Accepted: {command}", flush=True)
-            message = WhisperText(new_text=command, all_text=command,
-                                  words_json=json.dumps(command_words))
-            seconds = math.floor(onset)
-            message.header.stamp.sec = seconds
-            message.header.stamp.nanosec = int((onset - seconds) * 1_000_000_000)
-            self.publisher.publish(message)
+                try:
+                    words = self.transcribe_audio_words(audio, SAMPLE_RATE, stamp=onset)
+                except Exception as error:  # one bad utterance must not stop listening
+                    print(f"Transcription failed: {error}", flush=True)
+                    continue
+                if self._stop.is_set():
+                    return
+                command_words = wake_command_words(words)
+                if command_words is None:
+                    transcript = " ".join(word["word"] for word in words)
+                    print(f"Ignored (missing {WAKE_PHRASE!r}): {transcript}", flush=True)
+                    continue
+                if not command_words:
+                    print("Wake phrase heard without a command", flush=True)
+                    continue
+                command = " ".join(word["word"] for word in command_words)
+                print(f"Accepted: {command}", flush=True)
+                message = WhisperText(new_text=command, all_text=command,
+                                      words_json=json.dumps(command_words))
+                seconds = math.floor(onset)
+                message.header.stamp.sec = seconds
+                message.header.stamp.nanosec = int((onset - seconds) * 1_000_000_000)
+                self.publisher.publish(message)
+            finally:
+                self.speech_active_publisher.publish(Bool(data=False))

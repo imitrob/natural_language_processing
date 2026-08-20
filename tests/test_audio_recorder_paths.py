@@ -7,8 +7,9 @@ from natural_language_processing.speech_to_text.audio_recorder import AudioRecor
 
 
 class _FakeProcess:
-    def __init__(self, argv):
+    def __init__(self, argv, **kwargs):
         self.argv = argv
+        self.kwargs = kwargs
 
     def terminate(self):
         pass
@@ -45,3 +46,11 @@ def test_an_explicit_path_is_kept(monkeypatch, tmp_path):
     recorder = _record(monkeypatch, tmp_path, output_file=target)
 
     assert recorder.output_file == str(target)
+
+
+def test_the_recorder_does_not_steal_the_terminals_stdin(monkeypatch, tmp_path):
+    """record_voice() calls input() again right after start_recording(); an
+    inherited stdin is consumed by arecord and that input() raises EOFError."""
+    recorder = _record(monkeypatch, tmp_path)
+
+    assert recorder.process.kwargs["stdin"] is audio_recorder.subprocess.DEVNULL
