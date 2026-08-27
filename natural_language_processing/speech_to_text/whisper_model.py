@@ -67,7 +67,7 @@ class SpeechToTextModel():
         self.torch_dtype = torch_dtype
         self.processor = AutoProcessor.from_pretrained(model_id)
         self.model = WhisperForConditionalGeneration.from_pretrained(
-            model_id, dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+            model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
         ).to(device)
 
     def delete(self):
