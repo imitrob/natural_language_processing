@@ -1,13 +1,19 @@
 """Whisper speech-to-text with real per-word timestamps and word alternatives.
 
-One generate() call returns the transcription, the DTW token timestamps and the
-per-step logits, so timing and alternatives cost no extra decoding pass. The
-pipeline() API cannot return either, which is why this calls the model directly.
+One encoder pass plus one generate() call returns the transcription, the DTW token
+timestamps and the per-step logits, so timing and alternatives cost no extra
+decoding pass. The pipeline() API cannot return either, which is why this calls
+the model directly. The encoder is run here rather than inside generate() so that
+return_token_timestamps does not drag it off SDPA -- see _generate.
 
 Alternatives come from the top-k of a word's *first* token. On its own that top-k
 is a list of subword fragments ('Sp', 'Cas'), so each alternative is teacher-forced
 and greedily continued to the word boundary, turning ' Sp' into ' Spongebob'. That
-costs ~12% over the base pass on a 5070 Ti.
+roughly doubles a short utterance on a 3080 (0.15 s -> 0.37 s for 3.3 s of audio):
+each continuation step is its own un-cached decoder forward, so the cost is kernel
+launches, not arithmetic.
+ponytail: serial per-alternative decoding. Batch the TOP_K continuations into one
+forward if this ever matters -- it is ~25 forwards per utterance today.
 
 Probabilities are whisper's own and are NOT renormalised: the mass missing from
 the top-k is the model's own uncertainty about words outside the list, and a
@@ -108,23 +114,37 @@ class SpeechToTextModel():
         inputs = self.processor(audio, sampling_rate=sample_rate, return_tensors="pt",
                                 return_attention_mask=True)
         features = inputs.input_features.to(self.device, self.torch_dtype)
-        # Without the mask the DTW timestamps run off into the 30 s padding --
-        # a 4.5 s clip reports words at t=28.
-        attention_mask = inputs.attention_mask.to(self.device)
+        # DTW needs to know how much of the fixed 30 s window is real audio, and
+        # `num_frames` is the only thing it reads for that -- an attention_mask is
+        # ignored (_set_num_frames pops num_frames and nothing else). Without it
+        # DTW warps over all 1500 encoder positions and every word in a 3.3 s clip
+        # comes back at t=29.98, pinned to the far end of the padding.
+        num_frames = int(inputs.attention_mask.sum())
+
+        # Encode once, outside generate(), and hand the result in. return_token_timestamps
+        # switches the whole model to output_attentions=True, and SDPA cannot return
+        # attention weights, so every attention falls back to the eager implementation.
+        # For the 32-layer encoder that means materialising 20 heads x 1500 x 1500
+        # scores per layer: 2.5 s and a 7 GB peak on a 3080, to produce attentions DTW
+        # never looks at -- it only needs the decoder's cross-attention. Pre-encoding
+        # keeps the encoder on SDPA and leaves eager to the 4-layer decoder.
+        encoder_outputs = self.model.get_encoder()(features)
         output = self.model.generate(
-            features, attention_mask=attention_mask, language="en", task="transcribe",
+            features, encoder_outputs=encoder_outputs, num_frames=num_frames,
+            language="en", task="transcribe",
             return_token_timestamps=True, output_scores=True, return_dict_in_generate=True,
         )
         token_ids = output["sequences"][0].tolist()
         timestamps = output["token_timestamps"][0]
         scores = output["scores"]
+        # DTW leaves all cross-attentions in output; free them before re-encoding.
+        # del output
         # generate() scores only the tokens it produced, so the forced prefix
         # (<|startoftranscript|><|en|>...) has no score to line up with.
         score_offset = len(token_ids) - len(scores)
 
-        # The encoder runs once and its output is reused by every continuation;
+        # The alternatives pass reuses the same encoder output as generate() did;
         # re-encoding per alternative costs more than the whole base pass.
-        encoder_outputs = self.model.get_encoder()(features) if alternatives else None
 
         words, current = [], None
         for index, token in enumerate(token_ids):
