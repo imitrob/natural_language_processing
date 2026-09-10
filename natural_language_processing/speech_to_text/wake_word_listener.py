@@ -118,7 +118,21 @@ def resolve_audio_device(requested):
         if explicit:
             raise
         print(f"No {DEFAULT_AUDIO_DEVICE!r} input, using the system default", flush=True)
-        return None, sd.query_devices(kind="input")
+        info = sd.query_devices(kind="input")
+        # Raw ALSA hw: devices do no resampling, so the system default often
+        # rejects SAMPLE_RATE outright. Say that here instead of letting
+        # sd.InputStream die with a bare PaErrorCode -9997 much later.
+        try:
+            sd.check_input_settings(device=None, samplerate=SAMPLE_RATE,
+                                    channels=1, dtype="int16")
+        except sd.PortAudioError as error:
+            raise ValueError(
+                f"System default input {info['name']!r} does not support "
+                f"{SAMPLE_RATE} Hz ({error}). Plug in / power on the "
+                f"{DEFAULT_AUDIO_DEVICE} headset, or set AUDIO_DEVICE to an "
+                f"input that does."
+            ) from error
+        return None, info
 
 
 def _match_audio_device(requested):
