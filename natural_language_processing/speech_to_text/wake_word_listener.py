@@ -6,6 +6,7 @@ import queue
 import re
 import threading
 import time
+import traceback
 from collections import deque
 
 import numpy as np
@@ -245,6 +246,7 @@ class AutoSpeechToTextNode(SpeechToTextNode):
                     words = self.transcribe_audio_words(audio, SAMPLE_RATE, stamp=onset)
                 except Exception as error:  # one bad utterance must not stop listening
                     print(f"Transcription failed: {error}", flush=True)
+                    traceback.print_exc()
                     continue
                 if self._stop.is_set():
                     return
