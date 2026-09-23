@@ -15,7 +15,7 @@ from faster_whisper.vad import VadOptions, get_speech_timestamps
 
 from hri_msgs.msg import WhisperText
 from std_msgs.msg import Bool
-from natural_language_processing.speech_to_text.stt_node import SpeechToTextNode
+from natural_language_processing.speech_to_text.stt_node import SpeechToTextNode, exit_if_cuda_broken
 
 # Tune these for the microphone and room.
 WAKE_PHRASE = "hey robot"
@@ -247,6 +247,7 @@ class AutoSpeechToTextNode(SpeechToTextNode):
                 except Exception as error:  # one bad utterance must not stop listening
                     print(f"Transcription failed: {error}", flush=True)
                     traceback.print_exc()
+                    exit_if_cuda_broken(error)
                     continue
                 if self._stop.is_set():
                     return

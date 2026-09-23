@@ -11,6 +11,7 @@ text is built from that same stream, so the two can never disagree.
 import argparse
 import json
 import os
+import subprocess
 import threading
 
 import numpy as np
@@ -21,6 +22,24 @@ from hri_msgs.srv import Transcribe, TranscribeAudio
 from natural_language_processing.speech_to_text.stt_client import STT_SERVICE
 
 STT_AUDIO_SERVICE = "/speech_to_text/transcribe_audio"
+
+
+def exit_if_cuda_broken(error):
+    """A CUDA error (e.g. device-side assert) poisons the CUDA context: every
+    later transcription fails too, which looks like the microphone going deaf.
+    Die loudly so launch reports it, instead of silently returning "".
+    CUDA out-of-memory does not contain "CUDA error" and stays recoverable."""
+    if "CUDA error" not in str(error):
+        return
+    print("\n" + "!" * 70 +
+          f"\nSTT DEAD: {error}\nThe CUDA context is unusable; restart the launch.\n" +
+          "!" * 70, flush=True)
+    try:  # best effort: a missing player or sound must not block the exit
+        subprocess.run(["paplay", "/usr/share/sounds/freedesktop/stereo/dialog-error.oga"],
+                       timeout=5, check=False)
+    except Exception:  # noqa: BLE001
+        pass
+    os._exit(1)  # sys.exit would only end the calling thread
 
 
 def fill_response(response, words):
@@ -58,6 +77,7 @@ class SpeechToTextNode(Node):
                 fill_response(response, self.model.transcribe_to_words(
                     request.file, stamp=request.stamp))
         except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
+            exit_if_cuda_broken(e)
             print(f"Transcription failed ({e}), returning empty text", flush=True)
             response.text = ""
             response.words_json = ""
@@ -74,6 +94,7 @@ class SpeechToTextNode(Node):
             fill_response(response, self.transcribe_audio_words(
                 audio, request.sample_rate, request.stamp))
         except Exception as e:  # noqa: BLE001 -- one bad request must not kill the server
+            exit_if_cuda_broken(e)
             print(f"PCM transcription failed ({e}), returning empty text", flush=True)
             response.text = ""
             response.words_json = ""
