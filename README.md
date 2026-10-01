@@ -53,8 +53,8 @@ words outside the list. `Transcribe`/`TranscribeAudio` take a `stamp` request
 field to place the words on that clock; 0 leaves them relative to the audio.
 
 The merger always queues the full distribution. How much of it a method reads
-is that method's declared `ADAPTER_LEVEL`: A0 takes the winning word via
-`to_a0()`, A2 reads the candidates.
+is that method's declared `ADAPTER_LEVEL`: `top1` (top-1 input) takes the winning word via
+`to_top1()`, `prob` (probabilistic input) reads the candidates.
 
 `--audio-device` accepts a PortAudio index or a name substring, and falls back
 to `AUDIO_DEVICE`, then to `Jabra`, then to the system default input. Wake
