@@ -84,7 +84,19 @@ class AudioRecorder():
                   f"Is a microphone connected? Check the `-D plughw:` card in "
                   f"audio_recorder.py (`arecord -l` lists them).", flush=True)
             return None, self.start_time
+        self.fix_length(self.output_file)
         return self.output_file, self.start_time
+
+    @staticmethod
+    def fix_length(soundfile) -> None:
+        """arecord writes the header length for the full -d duration and does not
+        correct it when stopped early, so the header claims e.g. 60 s of a 2 s
+        recording. Rewrite the file with the length of the data it holds."""
+        with wave.open(str(soundfile), "rb") as wf:
+            params, frames = wf.getparams(), wf.readframes(wf.getnframes())
+        with wave.open(str(soundfile), "wb") as wf:
+            wf.setparams(params)
+            wf.writeframes(frames)
 
     @classmethod
     def check_sound(cls, soundfile: str | Path, SILENCE_RMS_THRESHOLD: int) -> bool:
