@@ -53,6 +53,7 @@ def test_generate_reuses_attention_free_encoder_output():
         def generate(self, *_args, **kwargs):
             assert encoder_calls == 1
             assert kwargs["encoder_outputs"] is encoded
+            assert kwargs["return_timestamps"]  # else DTW pins words to 0.0
             return Output(
                 sequences=torch.tensor([[1]]),
                 token_timestamps=torch.tensor([[0.0]]),

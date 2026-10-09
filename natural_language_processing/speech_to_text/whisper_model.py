@@ -25,8 +25,8 @@ from transformers import AutoProcessor, WhisperForConditionalGeneration
 
 TOP_K = 5
 MIN_ALT_PROB = 0.01
-# Whisper's encoder takes a fixed 30 s window. Both callers are well inside it
-# (AudioRecorder records 5 s, wake_word_listener caps an utterance at 15 s).
+# Whisper's encoder takes a fixed 30 s window. AudioRecorder caps a recording at
+# 60 s, but Enter stops it far earlier; wake_word_listener caps an utterance at 15 s.
 # ponytail: single window, add chunked long-form only if a caller ever exceeds it.
 MAX_AUDIO_SECONDS = 30.0
 # A greedy continuation covers the longest word whisper tokenises in pieces.
@@ -129,14 +129,29 @@ class SpeechToTextModel():
         # never looks at -- it only needs the decoder's cross-attention. Pre-encoding
         # keeps the encoder on SDPA and leaves eager to the 4-layer decoder.
         encoder_outputs = self.model.get_encoder()(features)
+        # return_timestamps: decode with timestamp tokens, not <|notimestamps|>.
+        # Without them no token stands for the silence before the first word, so
+        # DTW pins the first word to 0.0 and, for some clips, every word (study_simple
+        # p01-p03: 9 of 111 trials). The leading <|0.00|> token takes the silence.
         output = self.model.generate(
             features, encoder_outputs=encoder_outputs, num_frames=num_frames,
-            language="en", task="transcribe",
+            language="en", task="transcribe", return_timestamps=True,
             return_token_timestamps=True, output_scores=True, return_dict_in_generate=True,
         )
-        token_ids = output["sequences"][0].tolist()
-        timestamps = output["token_timestamps"][0]
-        scores = output["scores"]
+        # With timestamps, generate() moves the raw output (prefix tokens, scores)
+        # into segments, unbatched. Short-form (< 30 s) is one generate call, so
+        # every segment holds the same result.
+        segments = output.get("segments", [[]])[0]
+        if segments:
+            assert all(s["result"] is segments[0]["result"] for s in segments)
+            result = segments[0]["result"]
+            token_ids = result["sequences"].tolist()
+            timestamps = result["token_timestamps"]
+            scores = [score[None] for score in result["scores"]]
+        else:
+            token_ids = output["sequences"][0].tolist()
+            timestamps = output["token_timestamps"][0]
+            scores = output["scores"]
         # DTW leaves all cross-attentions in output; free them before re-encoding.
         # del output
         # generate() scores only the tokens it produced, so the forced prefix
